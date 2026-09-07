@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+
+# Dados financeiros e backups
+*.[oO][fF][xX]
+*.[cC][sS][vV]
+*.[xX][lL][sS]*
+*.db
+*.db-*
+*.sqlite*
+*.sql
+backups/
+dados/
+extratos/
+*.log
+
+# Credenciais
+.env
+.env.*
+*.pem
+*.key
