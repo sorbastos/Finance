@@ -2,12 +2,15 @@
 """Janela local para gestão de despesas."""
 import os
 import csv
+from collections import defaultdict
 from pathlib import Path
 import sqlite3
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from xlsx_itau import parse_xlsx
-from core import Store, CATEGORIES, csv_table, parse_csv, parse_ofx, normalize
+from finance import FinanceStore as Store
+from finance_ui import FinanceUI
+from core import CATEGORIES, csv_table, parse_csv, parse_ofx, normalize
 
 
 def brl(cents):
@@ -18,7 +21,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Minhas despesas • Local')
-        self.geometry('1150x720')
+        self.geometry('1280x850')
         self.minsize(900, 600)
         data = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'minhas-despesas'
         self.store = Store(data / 'despesas.sqlite3')
@@ -31,6 +34,13 @@ class App(tk.Tk):
         style.configure('Treeview', rowheight=30)
         style.configure('Title.TLabel', font=('DejaVu Sans', 23, 'bold'))
         style.configure('Import.TButton', font=('DejaVu Sans', 13, 'bold'), padding=(20, 12))
+        self.configure(background='#f3f5f9')
+        style.configure('TFrame', background='#f3f5f9')
+        style.configure('TLabel', background='#f3f5f9', foreground='#17243b')
+        style.configure('TButton', padding=(10, 7))
+        style.configure('TNotebook.Tab', padding=(22, 10))
+        style.configure('Treeview', background='white', fieldbackground='white', borderwidth=0)
+        style.configure('Treeview.Heading', background='#e6edf5', padding=8)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
         header = ttk.Frame(self, padding=20)
@@ -45,26 +55,83 @@ class App(tk.Tk):
         bar.grid(sticky='ew')
         for label, command in [('＋ Conta ou cartão', self.new_account), ('Categorizar seleção', self.categorize), ('Desfazer última importação', self.undo), ('Backup', self.backup)]:
             ttk.Button(bar, text=label, command=command).pack(side='left', padx=(0, 8))
-        filters = ttk.Frame(self, padding=20)
-        filters.grid(sticky='ew')
+        filter_container = ttk.Frame(self, padding=(20, 10))
+        filter_container.grid(sticky='ew')
+        filters = ttk.Frame(filter_container)
+        filters.pack(fill='x')
         ttk.Label(filters, text='Conta:').pack(side='left')
         self.account = ttk.Combobox(filters, state='readonly', width=24)
         self.account.pack(side='left', padx=6)
         self.account.bind('<<ComboboxSelected>>', lambda e: self.refresh())
-        ttk.Label(filters, text='Mês (AAAA-MM, vazio = todos):').pack(side='left', padx=6)
-        self.month = ttk.Entry(filters, width=10)
-        self.month.pack(side='left')
-        self.search = ttk.Entry(filters, width=20)
+        ttk.Label(filters, text='Mês:').pack(side='left', padx=6)
+        self.previous_month = ttk.Button(filters, text='‹', width=3, command=lambda: self.move_month(1))
+        self.previous_month.pack(side='left')
+        self.month = ttk.Combobox(filters, state='readonly', width=21)
+        self.month.pack(side='left', padx=4)
+        self.next_month = ttk.Button(filters, text='›', width=3, command=lambda: self.move_month(-1))
+        self.next_month.pack(side='left')
+        self.month.bind('<<ComboboxSelected>>', lambda e: self.refresh())
+        filters = ttk.Frame(filter_container)
+        filters.pack(fill='x', pady=(8,0))
+        ttk.Label(filters,text='Gastos de:').pack(side='left')
+        self.ownership = ttk.Combobox(filters, values=['Todos os titulares', 'Titular', 'Adicional'], state='readonly', width=18)
+        self.ownership.set('Todos os titulares')
+        self.ownership.pack(side='left', padx=6)
+        self.ownership.bind('<<ComboboxSelected>>', lambda e: self.refresh())
+        self.search = ttk.Entry(filters, width=14)
         self.search.pack(side='left', padx=6)
-        ttk.Button(filters, text='Filtrar descrição / mês', command=self.refresh).pack(side='left')
-        self.month.bind('<Return>', lambda e: self.refresh())
+        ttk.Button(filters, text='Buscar descrição', command=self.refresh).pack(side='left')
         self.search.bind('<Return>', lambda e: self.refresh())
-        self.tree = self.table(self, ['Data', 'Fatura', 'Conta', 'Descrição', 'Valor', 'Categoria'])
-        self.tree.master.grid(row=3, column=0, sticky='nsew', padx=20)
-        self.summary = ttk.Label(self, padding=20, font=('DejaVu Sans', 12))
+        self.pages = ttk.Notebook(self)
+        self.pages.grid(row=3, column=0, sticky='nsew', padx=20)
+        overview = ttk.Frame(self.pages, padding=14)
+        transactions = ttk.Frame(self.pages, padding=12)
+        self.pages.add(overview, text='Visão geral')
+        self.pages.add(transactions, text='Transações')
+        overview.columnconfigure(0, weight=1)
+        overview.rowconfigure(2, weight=1)
+        cards = ttk.Frame(overview)
+        cards.grid(sticky='ew', pady=(0, 14))
+        self.metrics = {}
+        for index, (key, title, color) in enumerate([
+                ('income', 'ENTRADAS / CRÉDITOS', '#137b65'), ('expenses', 'DESPESAS', '#c4445e'),
+                ('net', 'RESULTADO DO PERÍODO', '#315fc4'), ('pending', 'PARA CATEGORIZAR', '#a76b17')]):
+            cards.columnconfigure(index, weight=1, uniform='cards')
+            card = tk.Frame(cards, bg='white', padx=16, pady=16, highlightbackground='#e1e6ee', highlightthickness=1)
+            card.grid(row=0, column=index, sticky='nsew', padx=(0, 10) if index < 3 else 0)
+            tk.Label(card, text=title, font=('DejaVu Sans', 9, 'bold'), fg='#66758b', bg='white').pack(anchor='w')
+            value = tk.Label(card, text='—', font=('DejaVu Sans', 20, 'bold'), fg=color, bg='white')
+            value.pack(anchor='w', pady=(8, 0))
+            self.metrics[key] = value
+        self.dashboard_caption = ttk.Label(overview, text='', font=('DejaVu Sans', 11))
+        self.dashboard_caption.grid(sticky='w', pady=(0, 12))
+        plots = ttk.Frame(overview)
+        plots.grid(sticky='nsew')
+        plots.columnconfigure(0, weight=1, uniform='plots')
+        plots.columnconfigure(1, weight=1, uniform='plots')
+        plots.rowconfigure(0, weight=1)
+        self.category_plot = tk.Canvas(plots, bg='white', highlightthickness=0, height=270)
+        self.account_plot = tk.Canvas(plots, bg='white', highlightthickness=0, height=270)
+        self.category_plot.grid(row=0, column=0, sticky='nsew', padx=(0, 12))
+        self.account_plot.grid(row=0, column=1, sticky='nsew')
+        self.chart_data = ({}, {})
+        for canvas in (self.category_plot, self.account_plot):
+            canvas.bind('<Configure>', lambda e: self.draw_dashboard())
+        ttk.Button(overview, text='Ver e categorizar transações →', command=lambda: self.pages.select(1)).grid(sticky='e', pady=(12, 0))
+        actions = ttk.Frame(transactions)
+        actions.pack(fill='x', pady=(0,8))
+        ttk.Button(actions,text='Novo lançamento',command=lambda:self.finance.run(lambda:self.finance.transaction_form(False))).pack(side='left',padx=4)
+        ttk.Button(actions,text='Editar lançamento',command=lambda:self.finance.run(lambda:self.finance.transaction_form(True))).pack(side='left',padx=4)
+        self.tree = self.table(transactions, ['Data', 'Fatura', 'Conta', 'Titularidade', 'Nome', 'Descrição', 'Valor', 'Categoria'])
+        self.tree.master.pack(fill='both', expand=True)
+        self.summary = ttk.Label(self, padding=(20, 8), font=('DejaVu Sans', 10))
         self.summary.grid(sticky='ew')
-        ttk.Label(self, text='Despesas excluem a categoria Transferência / pagamento de fatura. Filtro mensal: mês da fatura XLSX; data do lançamento para OFX/CSV.', padding=(20, 0)).grid(sticky='w')
-        ttk.Label(self, text=f'Banco SQL local (SQLite): {self.store.path}', padding=(20, 10)).grid(sticky='w')
+        ttk.Label(self, text='Resultado dos lançamentos, não saldo bancário. Transferências e pagamentos de fatura são excluídos dos totais.', padding=(20, 0)).grid(sticky='w')
+        ttk.Label(self, text='Período: mês da fatura para XLSX; data do lançamento para OFX/CSV.', padding=(20, 2)).grid(sticky='w')
+        ttk.Label(self, text=f'Banco local: {self.store.path}', padding=(20, 6)).grid(sticky='w')
+        planning = ttk.Frame(self.pages, padding=4)
+        self.pages.add(planning, text='Planejamento e faturas')
+        self.finance = FinanceUI(self, planning)
         self.load_accounts()
         self.refresh()
         self.protocol('WM_DELETE_WINDOW', self.close)
@@ -96,15 +163,80 @@ class App(tk.Tk):
         if self.account.get() not in self.account['values']:
             self.account.set('Todas')
 
+    def load_months(self):
+        names = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+        months = self.store.months(self.accounts.get(self.account.get()))
+        self.month_options = {'Todos os meses': ''}
+        self.month_options.update({f'{names[int(m[5:7])-1]} de {m[:4]}': m for m in months})
+        labels = list(self.month_options)
+        selected = self.month.get()
+        self.month['values'] = labels
+        if selected not in self.month_options:
+            self.month.set(labels[1] if months else labels[0])
+        index = labels.index(self.month.get())
+        self.previous_month.state(['!disabled'] if (index == 0 and months) or 0 < index < len(labels)-1 else ['disabled'])
+        self.next_month.state(['!disabled'] if index > 1 else ['disabled'])
+
+    def move_month(self, step):
+        labels = list(self.month_options)
+        index = labels.index(self.month.get())
+        target = 1 if index == 0 else index + step
+        if 1 <= target < len(labels):
+            self.month.set(labels[target])
+            self.refresh()
+
     def refresh(self):
-        rows = self.store.transactions(self.month.get().strip(), self.accounts.get(self.account.get()), self.search.get())
+        self.load_months()
+        rows = self.store.transactions(self.month_options[self.month.get()], self.accounts.get(self.account.get()), self.search.get(), '' if self.ownership.get()=='Todos os titulares' else self.ownership.get())
         self.tree.delete(*self.tree.get_children())
         for r in rows:
-            self.tree.insert('', 'end', iid=str(r['id']), values=(r['date'], r['invoice_month'], r['name'], r['description'], brl(r['amount']), r['category']), tags=('negative',) if r['amount'] < 0 else ())
+            self.tree.insert('', 'end', iid=str(r['id']), values=(r['date'], r['invoice_month'], r['name'], r['ownership'] or 'Não informado', r['holder'], r['description'], brl(r['amount']), r['category']), tags=('negative',) if r['amount'] < 0 else ())
         relevant = [r for r in rows if r['category'] != CATEGORIES[-1]]
         income = sum(r['amount'] for r in relevant if r['amount'] > 0)
         expenses = -sum(r['amount'] for r in relevant if r['amount'] < 0)
-        self.summary.config(text=f'Entradas / créditos: {brl(income)}     Despesas: {brl(expenses)}     Resultado: {brl(income-expenses)}\n{len(rows)} lançamentos • {sum(r["category"] == "Sem categoria" for r in rows)} para categorizar')
+        pending = sum(r['category'] == 'Sem categoria' for r in rows)
+        for key, value in [('income', brl(income)), ('expenses', brl(expenses)),
+                           ('net', brl(income-expenses)), ('pending', str(pending))]:
+            self.metrics[key].config(text=value)
+        categories, accounts = defaultdict(int), defaultdict(int)
+        for row in relevant:
+            if row['amount'] < 0:
+                categories[row['category']] -= row['amount']
+                accounts[row['name']] -= row['amount']
+        self.chart_data = (categories, accounts)
+        context = f'{self.month.get()} • {self.account.get()} • {self.ownership.get()} • {len(rows)} lançamentos'
+        if self.search.get():
+            context += f' • Busca: {self.search.get()}'
+        self.dashboard_caption.config(text=context)
+        self.summary.config(text=f'{len(rows)} lançamentos • {pending} para categorizar')
+        self.draw_dashboard()
+        self.finance.refresh()
+
+    def draw_dashboard(self):
+        for canvas, data, title, color in [
+                (self.category_plot, self.chart_data[0], 'Despesas por categoria', '#5b68d6'),
+                (self.account_plot, self.chart_data[1], 'Despesas por conta e cartão', '#189b91')]:
+            canvas.delete('all')
+            width, height = canvas.winfo_width(), canvas.winfo_height()
+            if width < 10:
+                continue
+            canvas.create_text(20, 24, anchor='w', text=title, fill='#17243b', font=('DejaVu Sans', 12, 'bold'))
+            if not data:
+                canvas.create_text(width/2, height/2, text='Nenhuma despesa neste período.\nImporte um extrato ou escolha outro mês.', justify='center', fill='#66758b', font=('DejaVu Sans', 10), width=width-40)
+                continue
+            limit = max(1, min(6, (height-55)//48))
+            items = sorted(data.items(), key=lambda item: item[1], reverse=True)
+            if len(items) > limit:
+                items = items[:limit-1] + [('Demais itens', sum(v for _, v in items[limit-1:]))]
+            maximum = max(value for _, value in items)
+            for index, (label, value) in enumerate(items):
+                y = 56 + index*48
+                short = label if len(label) <= max(15, (width-175)//7) else label[:max(15, (width-175)//7)-1]+'…'
+                canvas.create_text(20, y, anchor='w', text=short, fill='#43516a', font=('DejaVu Sans', 10))
+                canvas.create_text(width-20, y, anchor='e', text=brl(value), fill='#17243b', font=('DejaVu Sans', 10, 'bold'))
+                canvas.create_rectangle(20, y+12, width-20, y+23, fill='#edf1f7', outline='')
+                canvas.create_rectangle(20, y+12, 20+(width-40)*value/maximum, y+23, fill=color, outline='')
 
     def new_account(self):
         win = tk.Toplevel(self)
@@ -183,10 +315,11 @@ class App(tk.Tk):
                 total += count
                 saved_files += count > 0
             self.account.set('Todas')
-            self.month.delete(0, 'end')
+            self.ownership.set('Todos os titulares')
+            self.month.set('')
             self.search.delete(0, 'end')
             self.refresh()
-            self.import_status.config(text=f'{total} lançamentos salvos no banco SQL • {saved_files} de {len(selected)} arquivos importados.')
+            self.import_status.config(text=f'{total} lançamentos novos salvos • metadados das faturas revisadas também são atualizados.')
         finally:
             self.import_button.state(['!disabled'])
 
@@ -275,7 +408,8 @@ class App(tk.Tk):
     def categorize(self):
         ids = self.tree.selection()
         if not ids:
-            messagebox.showinfo('Selecione lançamentos', 'Selecione uma ou mais linhas para categorizar.')
+            self.pages.select(1)
+            messagebox.showinfo('Selecione lançamentos', 'Selecione uma ou mais linhas na aba Transações para categorizar.')
             return
         win = tk.Toplevel(self)
         win.title('Categoria e regra automática')
@@ -287,7 +421,11 @@ class App(tk.Tk):
         term = ttk.Entry(win, width=44)
         term.pack()
         def save():
-            self.store.categorize(ids, category.get(), term.get())
+            try:
+                self.store.categorize(ids, category.get(), term.get())
+            except (ValueError, sqlite3.Error) as exc:
+                messagebox.showerror('Confira os lançamentos', str(exc), parent=win)
+                return
             win.destroy()
             self.refresh()
         ttk.Button(win, text='Salvar categoria', command=save).pack(pady=12)

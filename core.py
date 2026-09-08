@@ -183,6 +183,12 @@ class Store:
                 raise ValueError('Nenhum lançamento novo para salvar.')
         return count
 
+    def months(self, account=None):
+        return [r['month'] for r in self.db.execute("""
+            SELECT DISTINCT COALESCE(NULLIF(invoice_month,''),substr(date,1,7)) AS month
+            FROM transactions WHERE (? IS NULL OR account=?) ORDER BY month DESC
+        """, (account, account))]
+
     def transactions(self, month='', account=None, search=''):
         return self.db.execute('''SELECT t.*, a.name, a.kind FROM transactions t JOIN accounts a ON a.id=t.account
         WHERE COALESCE(NULLIF(invoice_month,''),substr(date,1,7)) LIKE ? AND (? IS NULL OR account=?) AND description LIKE ? ORDER BY date DESC, t.id DESC''',
