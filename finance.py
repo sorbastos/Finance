@@ -296,3 +296,20 @@ class FinanceStore(Store):
                 JOIN transactions c ON c.id=r.credit WHERE d.batch=? OR c.batch=?''',(batch['id'],batch['id'])).fetchall():
                 self.unreconcile(r['id'])
         super().undo()
+
+    def account_impact(self, account):
+        row=self.db.execute('SELECT * FROM accounts WHERE id=?',(account,)).fetchone()
+        if not row: raise ValueError('Selecione uma conta ou cartão.')
+        return dict(name=row['name'], transactions=self.db.execute('SELECT count(*) FROM transactions WHERE account=?',(account,)).fetchone()[0], batches=self.db.execute('SELECT count(*) FROM batches WHERE account=?',(account,)).fetchone()[0], invoices=len(self.invoices(account)))
+
+    def delete_account(self, account):
+        self.account_impact(account)
+        with self.db:
+            pairs=self.db.execute('''SELECT r.* FROM reconciliations r JOIN transactions d ON d.id=r.debit JOIN transactions c ON c.id=r.credit WHERE d.account=? OR c.account=?''',(account,account)).fetchall()
+            for r in pairs:
+                self.db.execute('UPDATE transactions SET category=? WHERE id=?',(r['old_debit_category'],r['debit']))
+                self.db.execute('UPDATE transactions SET category=? WHERE id=?',(r['old_credit_category'],r['credit']))
+                self.db.execute('DELETE FROM reconciliations WHERE id=?',(r['id'],))
+            for table in ('invoice_overrides','invoice_snapshots','transactions','batches'):
+                self.db.execute(f'DELETE FROM {table} WHERE account=?',(account,))
+            self.db.execute('DELETE FROM accounts WHERE id=?',(account,))
