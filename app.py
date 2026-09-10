@@ -3,6 +3,7 @@
 import os
 import csv
 from theme import apply_theme
+from rounded import RoundedPanel
 from charts import draw as draw_chart
 from collections import defaultdict
 from pathlib import Path
@@ -63,10 +64,34 @@ class App(tk.Tk):
         self.content.grid(row=0,column=1,sticky='nsew')
         self.content.columnconfigure(0,weight=1)
         self.content.rowconfigure(3,weight=1)
-        self.sidebar = tk.Frame(self,bg='white',width=170)
-        self.sidebar.grid(row=0,column=0,sticky='ns')
-        self.sidebar.grid_propagate(False)
-        self.sidebar.pack_propagate(False)
+        self.sidebar_view = tk.Canvas(self, bg='white', width=220, highlightthickness=0, borderwidth=0)
+        self.sidebar_view.grid(row=0,column=0,sticky='nsew')
+        self.sidebar = tk.Frame(self.sidebar_view,bg='white')
+        sidebar_window = self.sidebar_view.create_window(0,0,window=self.sidebar,anchor='nw')
+        def resize_sidebar(event=None):
+            # Preserve enough room for labels at any display scale.
+            natural = max(220, self.sidebar.winfo_reqwidth())
+            width = max(natural, min(280, int(self.winfo_width() * .15)))
+            if int(self.sidebar_view.cget('width')) != width:
+                self.sidebar_view.configure(width=width)
+            self.sidebar_view.itemconfigure(sidebar_window,width=self.sidebar_view.winfo_width())
+            self.sidebar_view.configure(scrollregion=self.sidebar_view.bbox('all'))
+        self.sidebar_view.bind('<Configure>', resize_sidebar)
+        self.sidebar.bind('<Configure>', resize_sidebar)
+        self.bind('<Configure>', lambda e: resize_sidebar() if e.widget is self else None, add='+')
+        def scroll_sidebar(event):
+            if self.sidebar.winfo_height() > self.sidebar_view.winfo_height():
+                direction = -1 if event.num == 4 or getattr(event,'delta',0) > 0 else 1
+                self.sidebar_view.yview_scroll(direction, 'units')
+            return 'break'
+        def reveal_sidebar_item(event):
+            height = max(1,self.sidebar.winfo_height())
+            top = event.widget.winfo_y()
+            first,last = self.sidebar_view.yview()
+            if top < first*height:
+                self.sidebar_view.yview_moveto(top/height)
+            elif top+event.widget.winfo_height() > last*height:
+                self.sidebar_view.yview_moveto((top+event.widget.winfo_height()-self.sidebar_view.winfo_height())/height)
         tk.Label(self.sidebar,text='Finance',bg='white',fg='#258bd2',font=('DejaVu Sans',19,'bold'),pady=20).pack(anchor='w',padx=18)
         tk.Checkbutton(self.sidebar,text='Modo escuro',variable=self.dark_mode,command=self.toggle_theme,bg='white',fg='#52647b',relief='flat',highlightthickness=0).pack(anchor='w',padx=15,pady=(0,10))
         self.nav_buttons = {}
@@ -76,11 +101,16 @@ class App(tk.Tk):
                 font=('DejaVu Sans',10),command=lambda label=name:self.navigate(label))
             button.pack(fill='x',padx=8,pady=1)
             self.nav_buttons[name]=button
-        ttk.Separator(self.sidebar).pack(fill='x',padx=16,pady=12)
+        tk.Frame(self.sidebar,bg='white',height=16).pack(fill='x')
         for title,command in [('Nova conta / cartão',self.new_account),('Excluir conta / cartão',self.delete_account),
                               ('Desfazer importação',self.undo),('Backup manual',self.backup)]:
             tk.Button(self.sidebar,text=title,anchor='w',command=command,bg='white',fg='#7c8797',activebackground='#eef4fc',
-                relief='flat',borderwidth=0,padx=16,pady=6,font=('DejaVu Sans',9)).pack(fill='x',padx=8)
+                relief='flat',borderwidth=0,highlightthickness=0,padx=16,pady=6,font=('DejaVu Sans',9)).pack(fill='x',padx=8)
+
+        for widget in (self.sidebar_view,self.sidebar,*self.sidebar.winfo_children()):
+            for sequence in ('<Button-4>','<Button-5>','<MouseWheel>'):
+                widget.bind(sequence,scroll_sidebar)
+            widget.bind('<FocusIn>',reveal_sidebar_item)
 
         header = ttk.Frame(self.content, padding=20)
         header.grid(sticky='ew')
@@ -151,13 +181,13 @@ class App(tk.Tk):
                 ('income', 'ENTRADAS / CRÉDITOS', '#137b65'), ('expenses', 'DESPESAS', '#c4445e'),
                 ('net', 'RESULTADO DO PERÍODO', '#315fc4'), ('pending', 'PARA CATEGORIZAR', '#a76b17')]):
             cards.columnconfigure(index, weight=1, uniform='cards')
-            card = tk.Frame(cards, bg='white', padx=14, pady=16, highlightbackground='#e6edf7', highlightthickness=1)
+            card = RoundedPanel(cards)
             card.grid(row=0, column=index, sticky='nsew', padx=(0, 10) if index < 3 else 0)
-            label = tk.Label(card, text=title, font=('DejaVu Sans', 8), fg='#78879a', bg='white')
+            label = tk.Label(card.body, text=title, font=('DejaVu Sans', 8), fg='#78879a', bg='white')
             label.pack(anchor='w')
             label.configure(wraplength=190)
             self.metric_titles[key] = label
-            value = tk.Label(card, text='—', font=('DejaVu Sans', 19, 'bold'), fg=color, bg='white')
+            value = tk.Label(card.body, text='—', font=('DejaVu Sans', 19, 'bold'), fg=color, bg='white')
             value.pack(anchor='w', pady=(8, 0))
             self.metrics[key] = value
         self.dashboard_caption = ttk.Label(overview, text='', font=('DejaVu Sans', 11))
@@ -174,8 +204,8 @@ class App(tk.Tk):
         plots.columnconfigure(0, weight=1, uniform='plots')
         plots.columnconfigure(1, weight=1, uniform='plots')
         plots.rowconfigure(0, weight=1)
-        self.category_plot = tk.Canvas(plots, bg='white', highlightthickness=0, height=270)
-        self.account_plot = tk.Canvas(plots, bg='white', highlightthickness=0, height=270)
+        self.category_plot = tk.Canvas(plots, bg='#f2f6fc', highlightthickness=0, height=270)
+        self.account_plot = tk.Canvas(plots, bg='#f2f6fc', highlightthickness=0, height=270)
         self.category_plot.grid(row=0, column=0, sticky='nsew', padx=(0, 12))
         self.account_plot.grid(row=0, column=1, sticky='nsew')
         self.chart_data = ({}, {})

@@ -5,10 +5,10 @@ from xlsx_itau import parse_xlsx, excel_date
 import test_core
 
 
-def fixture(value='12.34', month='Outubro', installment='Parcela 2 de 6'):
+def fixture(value='12.34', month='Outubro', installment='Parcela 2 de 6', state='Aberta'):
     def cell(ref, text, numeric=False):
         return f'<c r="{ref}"><v>{text}</v></c>' if numeric else f'<c r="{ref}" t="inlineStr"><is><t>{text}</t></is></c>'
-    rows = [cell('B1', f'Fatura Aberta - {month}/2026'),
+    rows = [cell('B1', f'Fatura {state} - {month}/2026'),
             ''.join(cell(k+'2', v) for k,v in zip('BCDE', ['Data','Lançamento','Parcelamento','Valor'])),
             cell('B3', '2026-08-26')+cell('C3','Loja')+cell('D3',installment)+cell('E3',value,True),
             cell('B4','2026-09-02')+cell('C4','Pagamento Com Saldo')+cell('E4','-100',True),
@@ -38,6 +38,16 @@ class XlsxTests(unittest.TestCase):
         self.assertEqual(self.store.preview(2, rows)[0]['status'],'Possível duplicata')
         next_month = parse_xlsx(fixture(month='Novembro', installment='Parcela 3 de 6'))
         self.assertEqual(self.store.preview(2,next_month)[0]['status'],'Novo')
+
+    def test_paid_invoice_titles(self):
+        for month, number in [('Março', '03'), ('Maio', '05'), ('Setembro', '09')]:
+            with self.subTest(month=month):
+                rows = parse_xlsx(fixture(month=month, state='Paga'))
+                self.assertEqual(len(rows), 2)
+                self.assertEqual(rows[0]['invoice_month'], '2026-' + number)
+                self.assertEqual(rows[0]['invoice_state'], 'Fechada')
+                self.assertEqual(rows[0]['amount'], -1234)
+                self.assertEqual(rows[1]['amount'], 10000)
 
     def test_invalid_and_excel_dates(self):
         self.assertEqual(excel_date('46267'), '2026-09-02')

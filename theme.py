@@ -1,6 +1,7 @@
 """Tema visual e preferência local."""
 import tkinter as tk
 from tkinter import ttk
+from rounded import RoundedPanel
 
 
 def apply_theme(app):
@@ -28,6 +29,20 @@ def apply_theme(app):
     style.configure('Treeview.Heading',background=line,foreground=fg)
     style.map('Treeview.Heading',background=[('active',active)])
     style.configure('TScrollbar',background=line,troughcolor=bg,arrowcolor=fg)
+    # Clam's default light bevels otherwise remain visible in dark mode.
+    for name in ('TNotebook','Main.TNotebook','Treeview','Treeview.Heading',
+                 'TButton','TEntry','TCombobox','TSpinbox','TScrollbar',
+                 'Vertical.TScrollbar','Horizontal.TScrollbar'):
+        surface = panel if name in ('Treeview','TEntry','TCombobox','TSpinbox') else bg
+        style.configure(name,borderwidth=0,relief='flat',bordercolor=surface,
+                        lightcolor=surface,darkcolor=surface)
+        style.map(name,bordercolor=[('focus',surface),('active',surface)],
+                  lightcolor=[('focus',surface),('active',surface)],
+                  darkcolor=[('focus',surface),('active',surface)])
+    for name in ('Vertical.TScrollbar','Horizontal.TScrollbar'):
+        style.configure(name,background=line,troughcolor=bg,arrowcolor=muted,
+                        gripcount=0,arrowsize=12)
+        style.map(name,background=[('active',active),('pressed',active)])
     app.option_add('*TCombobox*Listbox.background',panel)
     app.option_add('*TCombobox*Listbox.foreground',fg)
     app.option_add('*TCombobox*Listbox.selectBackground',active)
@@ -50,6 +65,7 @@ def apply_theme(app):
         if isinstance(widget,ttk.Treeview):widget.tag_configure('negative',foreground='#fb8b99' if dark else '#aa293d')
         if isinstance(widget,tk.Canvas):widget.dark_theme=dark
         for child in widget.winfo_children():walk(child)
+        if isinstance(widget,RoundedPanel):widget.redraw()
     walk(app)
     app.update_navigation()
     if hasattr(app,'chart_mode'): app.draw_dashboard()

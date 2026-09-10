@@ -1,5 +1,6 @@
 """Gráficos locais em canvas, sem dependências ou dados externos."""
 from datetime import date, timedelta
+from rounded import rounded_surface
 
 PALETTE=['#008b86','#7952c7','#ffab19','#2fa6df','#ef6356','#7897ba']
 
@@ -30,6 +31,7 @@ def draw(canvas, data, title, mode):
     canvas.delete('all')
     w,h=canvas.winfo_width(),canvas.winfo_height()
     if w<30 or h<80:return
+    rounded_surface(canvas,w,h,surface)
     def text(x,y,label,**kw):
         canvas.create_text(x,y,text=label,fill=kw.pop('fill',foreground),font=kw.pop('font',('DejaVu Sans',10)),**kw)
     text(22,26,title,anchor='w',font=('DejaVu Sans',11,'bold'))
