@@ -75,3 +75,38 @@ Registros antigos que já têm Titular/Adicional na descrição recebem essa ide
 ## Atualização do banco
 
 As novas tabelas são criadas no banco SQLite existente sem excluir o histórico. Dados de fatura extraídos ficam ligados ao lote de importação; desfazer o lote recupera os metadados da importação anterior. Correções manuais de fatura e regras permanecem. Reimportar uma fatura com metadados novos pode salvar um lote com zero lançamentos novos. Não foi implementado backup automático; o botão Backup continua manual.
+
+
+## Dashboards separados
+
+No seletor superior, escolha **Conta corrente** ou **Cartão de crédito**. Selecionar uma conta específica também muda o dashboard automaticamente. A opção Todas reúne apenas contas do tipo do dashboard, sem misturar conta corrente e cartão. A lista de meses e a tabela acompanham esse tipo.
+
+- Conta corrente: entradas e saídas reais do extrato, incluindo transferências e pagamentos de fatura, movimentação líquida e pendências de categorização. Gráficos de saídas por categoria e por dia. A movimentação líquida não é o saldo bancário, pois não considera saldo inicial. O filtro de titularidade fica desabilitado.
+- Cartão: compras e estornos/créditos conforme os filtros; total e restante das faturas consolidados por mês e cartão. Os dois indicadores de faturas ignoram busca e titularidade para manter titular e adicional no mesmo pagamento. Faturas abertas têm total parcial; sem metadados, usa-se o valor dos lançamentos. O restante depende dos pagamentos vinculados na Conciliação. Gráficos de compras por categoria e titularidade.
+
+## Excluir conta ou cartão
+
+Escolha uma conta/cartão no filtro e clique em **Excluir conta / cartão**. A confirmação informa os lançamentos, importações e faturas afetados. A exclusão apaga os dados dessa conta e desfaz as conciliações relacionadas, restaurando a categoria do lançamento da outra conta. Outras contas, regras e orçamentos globais permanecem. Os arquivos originais de extrato não são apagados.
+
+A exclusão não possui desfazer no aplicativo; restauração exige backup manual anterior ou reimportação dos extratos. Nenhuma conta real é excluída apenas por instalar a atualização. Contas excluídas não são recriadas ao reiniciar.
+
+
+## Aparência e gráficos
+
+A interface usa fundo claro, painéis brancos e uma paleta discreta em verde. No dashboard, escolha **Barras**, **Rosca** ou **Evolução** em Visualização. Barras comparam os valores; rosca mostra a participação de cada grupo (categorias menores reunidas em Demais itens); evolução mostra entradas/créditos e saídas/compras por data, preenchendo dias sem lançamentos com zero no intervalo observado.
+
+No cartão, Evolução usa a data original da compra, inclusive para parcelas; o recorte continua sendo o mês de fatura selecionado. Ela não representa uma previsão de caixa. O dashboard tem rolagem vertical para manter os gráficos legíveis em janelas menores. Os filtros de conta, mês e titularidade permanecem disponíveis.
+
+
+## Navegação lateral e aparência desktop
+
+A versão atual usa navegação lateral para Visão geral, Contas, Cartões, Transações, Faturas, Parcelas futuras, Conciliação, Orçamentos, Comparação e Regras. As ações de cadastrar/excluir conta, desfazer importação e backup manual ficam na parte inferior da barra. A importação permanece no cabeçalho e a categorização fica na tela Transações.
+
+O visual foi inspirado na apresentação desktop do Minhas Finanças (https://minhasfinancas.app.br/desktop): fundo azul-claro, painéis brancos, destaque azul na navegação e cores para indicadores. O aplicativo mantém sua implementação local e não utiliza logotipos ou imagens do serviço de referência.
+
+O dashboard também traz Resumo por conta, com entradas/créditos, saídas/compras e movimento líquido no recorte selecionado. Movimento líquido não é saldo bancário. A tabela acompanha os filtros e a separação entre conta corrente e cartão; pagamentos de fatura entram nas saídas da conta, enquanto o cartão exclui a categoria de pagamento/transferência das compras.
+
+
+## Modo escuro
+
+Ative **Modo escuro** no topo do menu lateral. A mudança se aplica aos painéis, tabelas, gráficos e formulários do aplicativo. A preferência é salva no banco local e restaurada ao reabrir. Desmarque para voltar ao modo claro. Diálogos nativos do sistema, como seleção de arquivos, podem seguir o tema do sistema operacional.

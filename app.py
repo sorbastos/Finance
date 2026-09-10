@@ -2,6 +2,8 @@
 """Janela local para gestão de despesas."""
 import os
 import csv
+from theme import apply_theme
+from charts import draw as draw_chart
 from collections import defaultdict
 from pathlib import Path
 import sqlite3
@@ -22,10 +24,15 @@ class App(tk.Tk):
         super().__init__()
         self.title('Minhas despesas • Local')
         self.geometry('1280x850')
-        self.minsize(900, 600)
+        self.minsize(1080, 720)
         data = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'minhas-despesas'
+        first_start = not (data / 'despesas.sqlite3').exists()
         self.store = Store(data / 'despesas.sqlite3')
-        if not self.store.accounts():
+        self.store.db.execute('CREATE TABLE IF NOT EXISTS preferences(key TEXT PRIMARY KEY,value TEXT)')
+        self.store.db.commit()
+        preference=self.store.db.execute("SELECT value FROM preferences WHERE key='dark_mode'").fetchone()
+        self.dark_mode=tk.BooleanVar(value=bool(preference and preference[0]=='1'))
+        if first_start:
             self.store.add_account('Itaú • conta corrente', 'Conta corrente')
             self.store.add_account('Itaú • cartão', 'Cartão de crédito')
         style = ttk.Style(self)
@@ -34,39 +41,74 @@ class App(tk.Tk):
         style.configure('Treeview', rowheight=30)
         style.configure('Title.TLabel', font=('DejaVu Sans', 23, 'bold'))
         style.configure('Import.TButton', font=('DejaVu Sans', 13, 'bold'), padding=(20, 12))
-        self.configure(background='#f3f5f9')
-        style.configure('TFrame', background='#f3f5f9')
-        style.configure('TLabel', background='#f3f5f9', foreground='#17243b')
+        self.configure(background='#f2f6fc')
+        style.configure('TFrame', background='#f2f6fc')
+        style.configure('TLabel', background='#f2f6fc', foreground='#25364c')
         style.configure('TButton', padding=(10, 7))
         style.configure('TNotebook.Tab', padding=(22, 10))
         style.configure('Treeview', background='white', fieldbackground='white', borderwidth=0)
-        style.configure('Treeview.Heading', background='#e6edf5', padding=8)
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(3, weight=1)
-        header = ttk.Frame(self, padding=20)
+        style.configure('Treeview.Heading', background='#eaf0f8', padding=8)
+        style.configure('TButton', background='#eaf0f8', foreground='#258bd2', borderwidth=0, padding=(12,8))
+        style.map('TButton', background=[('active','#dceafa')])
+        style.configure('Import.TButton', background='#258bd2', foreground='white', font=('DejaVu Sans',10,'bold'),padding=(18,10))
+        style.map('Import.TButton',background=[('active','#1477bb')],foreground=[('active','white')])
+        style.configure('TNotebook',borderwidth=0,background='#f2f6fc')
+        style.configure('TNotebook.Tab',background='#f2f6fc',borderwidth=0,padding=(18,10))
+        style.map('TNotebook.Tab',background=[('selected','white')],foreground=[('selected','#258bd2')])
+        style.configure('Main.TNotebook',borderwidth=0,tabmargins=0)
+        style.layout('Main.TNotebook.Tab', [])
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.content = ttk.Frame(self)
+        self.content.grid(row=0,column=1,sticky='nsew')
+        self.content.columnconfigure(0,weight=1)
+        self.content.rowconfigure(3,weight=1)
+        self.sidebar = tk.Frame(self,bg='white',width=170)
+        self.sidebar.grid(row=0,column=0,sticky='ns')
+        self.sidebar.grid_propagate(False)
+        self.sidebar.pack_propagate(False)
+        tk.Label(self.sidebar,text='Finance',bg='white',fg='#258bd2',font=('DejaVu Sans',19,'bold'),pady=20).pack(anchor='w',padx=18)
+        tk.Checkbutton(self.sidebar,text='Modo escuro',variable=self.dark_mode,command=self.toggle_theme,bg='white',fg='#52647b',relief='flat',highlightthickness=0).pack(anchor='w',padx=15,pady=(0,10))
+        self.nav_buttons = {}
+        for name in ['Visão geral','Contas','Cartões','Transações','Faturas','Parcelas futuras','Conciliação','Orçamentos','Comparação','Regras']:
+            button = tk.Button(self.sidebar,text=name,anchor='w',bg='white',fg='#52647b',activebackground='#eaf3ff',
+                activeforeground='#258bd2',relief='flat',borderwidth=0,highlightthickness=0,padx=18,pady=8,
+                font=('DejaVu Sans',10),command=lambda label=name:self.navigate(label))
+            button.pack(fill='x',padx=8,pady=1)
+            self.nav_buttons[name]=button
+        ttk.Separator(self.sidebar).pack(fill='x',padx=16,pady=12)
+        for title,command in [('Nova conta / cartão',self.new_account),('Excluir conta / cartão',self.delete_account),
+                              ('Desfazer importação',self.undo),('Backup manual',self.backup)]:
+            tk.Button(self.sidebar,text=title,anchor='w',command=command,bg='white',fg='#7c8797',activebackground='#eef4fc',
+                relief='flat',borderwidth=0,padx=16,pady=6,font=('DejaVu Sans',9)).pack(fill='x',padx=8)
+
+        header = ttk.Frame(self.content, padding=20)
         header.grid(sticky='ew')
-        ttk.Label(header, text='Minhas despesas', style='Title.TLabel').pack(anchor='w')
-        ttk.Label(header, text='Contas e cartões • Importação semanal de extratos • Valores em reais').pack(anchor='w', pady=6)
-        self.import_button = ttk.Button(header, text='Selecionar arquivos para importar', style='Import.TButton', command=self.import_file)
-        self.import_button.pack(anchor='w', pady=(10, 4))
-        self.import_status = ttk.Label(header, text='Selecione OFX, CSV ou XLSX. Os lançamentos confirmados ficam salvos neste computador.')
-        self.import_status.pack(anchor='w')
-        bar = ttk.Frame(self, padding=(20, 0))
-        bar.grid(sticky='ew')
-        for label, command in [('＋ Conta ou cartão', self.new_account), ('Categorizar seleção', self.categorize), ('Desfazer última importação', self.undo), ('Backup', self.backup)]:
-            ttk.Button(bar, text=label, command=command).pack(side='left', padx=(0, 8))
-        filter_container = ttk.Frame(self, padding=(20, 10))
+        heading = ttk.Frame(header)
+        heading.pack(fill='x')
+        self.page_title = ttk.Label(heading, text='Visão geral', style='Title.TLabel')
+        self.page_title.pack(side='left')
+        self.import_button = ttk.Button(heading, text='Importar extratos', style='Import.TButton', command=self.import_file)
+        self.import_button.pack(side='right')
+        self.import_status = ttk.Label(header, text='Visão mensal · Dados locais · OFX, CSV e XLSX')
+        self.import_status.pack(anchor='w',pady=(8,0))
+        ttk.Frame(self.content).grid(row=1,column=0)
+        filter_container = ttk.Frame(self.content, padding=(20, 10))
         filter_container.grid(sticky='ew')
         filters = ttk.Frame(filter_container)
         filters.pack(fill='x')
+        self.dashboard_mode = ttk.Combobox(filters, values=['Conta corrente', 'Cartão de crédito'], state='readonly', width=16)
+        self.dashboard_mode.set('Conta corrente')
+        self.dashboard_mode.pack(side='left', padx=(0,8))
+        self.dashboard_mode.bind('<<ComboboxSelected>>', self.change_dashboard)
         ttk.Label(filters, text='Conta:').pack(side='left')
-        self.account = ttk.Combobox(filters, state='readonly', width=24)
+        self.account = ttk.Combobox(filters, state='readonly', width=20)
         self.account.pack(side='left', padx=6)
         self.account.bind('<<ComboboxSelected>>', lambda e: self.refresh())
         ttk.Label(filters, text='Mês:').pack(side='left', padx=6)
         self.previous_month = ttk.Button(filters, text='‹', width=3, command=lambda: self.move_month(1))
         self.previous_month.pack(side='left')
-        self.month = ttk.Combobox(filters, state='readonly', width=21)
+        self.month = ttk.Combobox(filters, state='readonly', width=18)
         self.month.pack(side='left', padx=4)
         self.next_month = ttk.Button(filters, text='›', width=3, command=lambda: self.move_month(-1))
         self.next_month.pack(side='left')
@@ -82,31 +124,53 @@ class App(tk.Tk):
         self.search.pack(side='left', padx=6)
         ttk.Button(filters, text='Buscar descrição', command=self.refresh).pack(side='left')
         self.search.bind('<Return>', lambda e: self.refresh())
-        self.pages = ttk.Notebook(self)
+        self.pages = ttk.Notebook(self.content, style='Main.TNotebook')
         self.pages.grid(row=3, column=0, sticky='nsew', padx=20)
-        overview = ttk.Frame(self.pages, padding=14)
+        overview_page = ttk.Frame(self.pages)
+        dashboard_scroll = ttk.Scrollbar(overview_page, orient='vertical')
+        dashboard_scroll.pack(side='right',fill='y')
+        viewport = tk.Canvas(overview_page,bg='#f2f6fc',highlightthickness=0,yscrollcommand=dashboard_scroll.set)
+        viewport.pack(side='left',fill='both',expand=True)
+        dashboard_scroll.configure(command=viewport.yview)
+        overview = ttk.Frame(viewport, padding=14)
+        dashboard_window = viewport.create_window((0,0),window=overview,anchor='nw')
+        viewport.bind('<Configure>',lambda e:viewport.itemconfigure(dashboard_window,width=e.width))
+        overview.bind('<Configure>',lambda e:viewport.configure(scrollregion=viewport.bbox('all')))
+        viewport.bind('<Button-4>',lambda e:viewport.yview_scroll(-1,'units'))
+        viewport.bind('<Button-5>',lambda e:viewport.yview_scroll(1,'units'))
         transactions = ttk.Frame(self.pages, padding=12)
-        self.pages.add(overview, text='Visão geral')
+        self.pages.add(overview_page, text='Visão geral')
         self.pages.add(transactions, text='Transações')
         overview.columnconfigure(0, weight=1)
-        overview.rowconfigure(2, weight=1)
+        overview.rowconfigure(2, weight=1, minsize=270)
         cards = ttk.Frame(overview)
         cards.grid(sticky='ew', pady=(0, 14))
         self.metrics = {}
+        self.metric_titles = {}
         for index, (key, title, color) in enumerate([
                 ('income', 'ENTRADAS / CRÉDITOS', '#137b65'), ('expenses', 'DESPESAS', '#c4445e'),
                 ('net', 'RESULTADO DO PERÍODO', '#315fc4'), ('pending', 'PARA CATEGORIZAR', '#a76b17')]):
             cards.columnconfigure(index, weight=1, uniform='cards')
-            card = tk.Frame(cards, bg='white', padx=16, pady=16, highlightbackground='#e1e6ee', highlightthickness=1)
+            card = tk.Frame(cards, bg='white', padx=14, pady=16, highlightbackground='#e6edf7', highlightthickness=1)
             card.grid(row=0, column=index, sticky='nsew', padx=(0, 10) if index < 3 else 0)
-            tk.Label(card, text=title, font=('DejaVu Sans', 9, 'bold'), fg='#66758b', bg='white').pack(anchor='w')
-            value = tk.Label(card, text='—', font=('DejaVu Sans', 20, 'bold'), fg=color, bg='white')
+            label = tk.Label(card, text=title, font=('DejaVu Sans', 8), fg='#78879a', bg='white')
+            label.pack(anchor='w')
+            label.configure(wraplength=190)
+            self.metric_titles[key] = label
+            value = tk.Label(card, text='—', font=('DejaVu Sans', 19, 'bold'), fg=color, bg='white')
             value.pack(anchor='w', pady=(8, 0))
             self.metrics[key] = value
         self.dashboard_caption = ttk.Label(overview, text='', font=('DejaVu Sans', 11))
         self.dashboard_caption.grid(sticky='w', pady=(0, 12))
+        chart_controls = ttk.Frame(overview)
+        chart_controls.grid(row=3,column=0,sticky='w',pady=(12,0))
+        ttk.Label(chart_controls,text='Visualização').pack(side='left',padx=(0,10))
+        self.chart_mode = tk.StringVar(value='Barras')
+        for mode in ('Barras','Rosca','Evolução'):
+            ttk.Radiobutton(chart_controls,text=mode,variable=self.chart_mode,value=mode,command=self.draw_dashboard).pack(side='left',padx=8)
+        self.timeline_data = ({},{})
         plots = ttk.Frame(overview)
-        plots.grid(sticky='nsew')
+        plots.grid(row=2,column=0,sticky='nsew')
         plots.columnconfigure(0, weight=1, uniform='plots')
         plots.columnconfigure(1, weight=1, uniform='plots')
         plots.rowconfigure(0, weight=1)
@@ -124,17 +188,65 @@ class App(tk.Tk):
         ttk.Button(actions,text='Editar lançamento',command=lambda:self.finance.run(lambda:self.finance.transaction_form(True))).pack(side='left',padx=4)
         self.tree = self.table(transactions, ['Data', 'Fatura', 'Conta', 'Titularidade', 'Nome', 'Descrição', 'Valor', 'Categoria'])
         self.tree.master.pack(fill='both', expand=True)
-        self.summary = ttk.Label(self, padding=(20, 8), font=('DejaVu Sans', 10))
+        ttk.Button(actions,text='Categorizar seleção',command=self.categorize).pack(side='left',padx=4)
+        account_panel = ttk.Frame(overview,padding=(0,12))
+        account_panel.grid(row=5,column=0,sticky='ew')
+        ttk.Label(account_panel,text='Resumo por conta',font=('DejaVu Sans',12,'bold')).pack(anchor='w',pady=(0,10))
+        self.account_summary = self.table(account_panel,['Conta / cartão','Entradas / créditos','Saídas / compras','Movimento líquido'])
+        self.account_summary.configure(height=4)
+        self.account_summary.master.pack(fill='x')
+        self.summary = ttk.Label(self.content, padding=(20, 8), font=('DejaVu Sans', 10))
         self.summary.grid(sticky='ew')
-        ttk.Label(self, text='Resultado dos lançamentos, não saldo bancário. Transferências e pagamentos de fatura são excluídos dos totais.', padding=(20, 0)).grid(sticky='w')
-        ttk.Label(self, text='Período: mês da fatura para XLSX; data do lançamento para OFX/CSV.', padding=(20, 2)).grid(sticky='w')
-        ttk.Label(self, text=f'Banco local: {self.store.path}', padding=(20, 6)).grid(sticky='w')
+        self.dashboard_note = ttk.Label(self.content, text='', padding=(20,0), wraplength=950)
+        self.dashboard_note.grid(sticky='w')
+        ttk.Label(self.content, text='Período: mês da fatura para XLSX; data do lançamento para OFX/CSV.', padding=(20, 2)).grid(sticky='w')
+        ttk.Label(self.content, text=f'Banco local: {self.store.path}', padding=(20, 6)).grid(sticky='w')
         planning = ttk.Frame(self.pages, padding=4)
         self.pages.add(planning, text='Planejamento e faturas')
         self.finance = FinanceUI(self, planning)
+        self.finance.tabs.configure(style='Main.TNotebook')
+        self.pages.bind('<<NotebookTabChanged>>',lambda e:self.update_navigation())
+        self.finance.tabs.bind('<<NotebookTabChanged>>',lambda e:self.update_navigation())
         self.load_accounts()
         self.refresh()
         self.protocol('WM_DELETE_WINDOW', self.close)
+        apply_theme(self)
+        self.refresh()
+        self.bind_all('<Map>',self.theme_new_window,add='+')
+
+    def navigate(self, name):
+        if name in ('Contas','Cartões'):
+            self.dashboard_mode.set('Conta corrente' if name=='Contas' else 'Cartão de crédito')
+            self.change_dashboard()
+            self.pages.select(0)
+        elif name=='Visão geral': self.pages.select(0)
+        elif name=='Transações': self.pages.select(1)
+        else:
+            section={'Faturas':0,'Parcelas futuras':1,'Conciliação':2,'Orçamentos':3,'Comparação':4,'Regras':5}[name]
+            self.pages.select(2)
+            self.finance.tabs.select(section)
+        self.update_navigation()
+
+    def update_navigation(self):
+        if not hasattr(self,'finance'): return
+        page=self.pages.index(self.pages.select())
+        if page==0: name='Cartões' if self.dashboard_mode.get()=='Cartão de crédito' else 'Contas'
+        elif page==1: name='Transações'
+        else: name=['Faturas','Parcelas futuras','Conciliação','Orçamentos','Comparação','Regras'][self.finance.tabs.index(self.finance.tabs.select())]
+        for label,button in self.nav_buttons.items():
+            active=label==name
+            button.configure(bg=('#243f5d' if active else '#1e293b') if self.dark_mode.get() else ('#eaf3ff' if active else 'white'),fg=('#7cc4ff' if active else '#cbd5e1') if self.dark_mode.get() else ('#258bd2' if active else '#52647b'))
+        self.page_title.configure(text=('Visão geral · '+name.lower()) if page==0 else name)
+
+    def toggle_theme(self):
+        with self.store.db:
+            self.store.db.execute("INSERT OR REPLACE INTO preferences VALUES ('dark_mode',?)",('1' if self.dark_mode.get() else '0',))
+        apply_theme(self)
+        self.refresh()
+
+    def theme_new_window(self,event):
+        if isinstance(event.widget,tk.Toplevel):
+            self.after_idle(lambda:apply_theme(self) if self.winfo_exists() else None)
 
     def close(self):
         self.store.db.close()
@@ -166,7 +278,10 @@ class App(tk.Tk):
     def load_months(self):
         names = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-        months = self.store.months(self.accounts.get(self.account.get()))
+        selected = self.accounts.get(self.account.get())
+        months = sorted({r['invoice_month'] or r['date'][:7] for r in self.store.transactions(account=selected) if r['kind']==self.dashboard_mode.get()}, reverse=True)
+        if self.dashboard_mode.get()=='Cartão de crédito':
+            months = sorted(set(months)|{r['month'] for r in self.store.invoices(selected)}, reverse=True)
         self.month_options = {'Todos os meses': ''}
         self.month_options.update({f'{names[int(m[5:7])-1]} de {m[:4]}': m for m in months})
         labels = list(self.month_options)
@@ -186,25 +301,67 @@ class App(tk.Tk):
             self.month.set(labels[target])
             self.refresh()
 
+    def change_dashboard(self, event=None):
+        self.account.set('Todas')
+        self.month.set('')
+        self.ownership.set('Todos os titulares')
+        self.refresh()
+
     def refresh(self):
+        account_id = self.accounts.get(self.account.get())
+        if account_id is not None:
+            self.dashboard_mode.set(next(a['kind'] for a in self.store.accounts() if a['id']==account_id))
+        is_card = self.dashboard_mode.get()=='Cartão de crédito'
+        if not is_card: self.ownership.set('Todos os titulares')
+        self.ownership.configure(state='readonly' if is_card else 'disabled')
+        self.pages.tab(0, text='Dashboard do cartão' if is_card else 'Dashboard da conta')
         self.load_months()
         rows = self.store.transactions(self.month_options[self.month.get()], self.accounts.get(self.account.get()), self.search.get(), '' if self.ownership.get()=='Todos os titulares' else self.ownership.get())
+        rows = [r for r in rows if r['kind']==self.dashboard_mode.get()]
         self.tree.delete(*self.tree.get_children())
         for r in rows:
             self.tree.insert('', 'end', iid=str(r['id']), values=(r['date'], r['invoice_month'], r['name'], r['ownership'] or 'Não informado', r['holder'], r['description'], brl(r['amount']), r['category']), tags=('negative',) if r['amount'] < 0 else ())
-        relevant = [r for r in rows if r['category'] != CATEGORIES[-1]]
+        relevant = [r for r in rows if r['category'] != CATEGORIES[-1]] if is_card else rows
         income = sum(r['amount'] for r in relevant if r['amount'] > 0)
         expenses = -sum(r['amount'] for r in relevant if r['amount'] < 0)
         pending = sum(r['category'] == 'Sem categoria' for r in rows)
-        for key, value in [('income', brl(income)), ('expenses', brl(expenses)),
-                           ('net', brl(income-expenses)), ('pending', str(pending))]:
-            self.metrics[key].config(text=value)
+        if is_card:
+            invoices = [r for r in self.store.invoices(account_id) if not self.month_options[self.month.get()] or r['month']==self.month_options[self.month.get()]]
+            bill_total = sum(r['total'] if r['total'] is not None else r['calculated'] for r in invoices)
+            titles = ['COMPRAS DO FILTRO', 'ESTORNOS / CRÉDITOS', 'FATURAS CONSOLIDADAS', 'RESTANTE DAS FATURAS']
+            values = [brl(expenses), brl(income), brl(bill_total), brl(sum(r['remaining'] for r in invoices))]
+            due = ', '.join(sorted({r['due'] for r in invoices if r['due']})) or 'a informar'
+            note = f'Faturas somam titular e adicional, sem filtro de busca; abertas têm valor parcial. Restante depende dos pagamentos vinculados. Vencimento(s): {due}.'
+        else:
+            titles = ['ENTRADAS NA CONTA', 'SAÍDAS DA CONTA', 'MOVIMENTAÇÃO LÍQUIDA', 'PARA CATEGORIZAR']
+            values = [brl(income), brl(expenses), brl(income-expenses), str(pending)]
+            note = 'Fluxo da conta: inclui transferências e pagamentos de fatura. Movimentação líquida é entradas menos saídas; não inclui saldo inicial e não representa saldo bancário.'
+        for key,title,value in zip(['income','expenses','net','pending'],titles,values):
+            self.metric_titles[key].config(text=title)
+            color = ('#e75b51' if key=='income' else '#16a46b') if is_card and key in ('income','expenses') else {'income':'#16a46b','expenses':'#e75b51','net':'#258bd2','pending':'#8261ca'}[key]
+            if self.dark_mode.get(): color={'#e75b51':'#fb8b99','#16a46b':'#4adea0','#258bd2':'#7cc4ff','#8261ca':'#bba1f5'}.get(color,color)
+            self.metrics[key].config(text=value,fg=color)
+        self.dashboard_note.config(text=note)
+        self.chart_titles = ('Compras por categoria','Compras por titularidade') if is_card else ('Saídas por categoria','Saídas por dia')
         categories, accounts = defaultdict(int), defaultdict(int)
         for row in relevant:
             if row['amount'] < 0:
                 categories[row['category']] -= row['amount']
-                accounts[row['name']] -= row['amount']
+                accounts[(row['ownership'] or 'Não informado') if is_card else row['date']] -= row['amount']
+        self.account_summary.delete(*self.account_summary.get_children())
+        grouped = {}
+        for row in relevant:
+            amounts=grouped.setdefault(row['name'],[0,0])
+            if row['amount']>0: amounts[0]+=row['amount']
+            else: amounts[1]-=row['amount']
+        for name,(credits,debits) in sorted(grouped.items()):
+            self.account_summary.insert('','end',values=(name,brl(credits),brl(debits),brl(credits-debits)))
         self.chart_data = (categories, accounts)
+        outgoing,incoming=defaultdict(int),defaultdict(int)
+        for row in relevant:
+            if row['amount']<0: outgoing[row['date']]-=row['amount']
+            elif row['amount']>0: incoming[row['date']]+=row['amount']
+        self.timeline_data=(outgoing,incoming)
         context = f'{self.month.get()} • {self.account.get()} • {self.ownership.get()} • {len(rows)} lançamentos'
         if self.search.get():
             context += f' • Busca: {self.search.get()}'
@@ -212,31 +369,38 @@ class App(tk.Tk):
         self.summary.config(text=f'{len(rows)} lançamentos • {pending} para categorizar')
         self.draw_dashboard()
         self.finance.refresh()
+        self.update_navigation()
 
     def draw_dashboard(self):
-        for canvas, data, title, color in [
-                (self.category_plot, self.chart_data[0], 'Despesas por categoria', '#5b68d6'),
-                (self.account_plot, self.chart_data[1], 'Despesas por conta e cartão', '#189b91')]:
-            canvas.delete('all')
-            width, height = canvas.winfo_width(), canvas.winfo_height()
-            if width < 10:
-                continue
-            canvas.create_text(20, 24, anchor='w', text=title, fill='#17243b', font=('DejaVu Sans', 12, 'bold'))
-            if not data:
-                canvas.create_text(width/2, height/2, text='Nenhuma despesa neste período.\nImporte um extrato ou escolha outro mês.', justify='center', fill='#66758b', font=('DejaVu Sans', 10), width=width-40)
-                continue
-            limit = max(1, min(6, (height-55)//48))
-            items = sorted(data.items(), key=lambda item: item[1], reverse=True)
-            if len(items) > limit:
-                items = items[:limit-1] + [('Demais itens', sum(v for _, v in items[limit-1:]))]
-            maximum = max(value for _, value in items)
-            for index, (label, value) in enumerate(items):
-                y = 56 + index*48
-                short = label if len(label) <= max(15, (width-175)//7) else label[:max(15, (width-175)//7)-1]+'…'
-                canvas.create_text(20, y, anchor='w', text=short, fill='#43516a', font=('DejaVu Sans', 10))
-                canvas.create_text(width-20, y, anchor='e', text=brl(value), fill='#17243b', font=('DejaVu Sans', 10, 'bold'))
-                canvas.create_rectangle(20, y+12, width-20, y+23, fill='#edf1f7', outline='')
-                canvas.create_rectangle(20, y+12, 20+(width-40)*value/maximum, y+23, fill=color, outline='')
+        mode=self.chart_mode.get()
+        if mode=='Evolução':
+            data=self.timeline_data
+            titles=('Compras por data original','Créditos por data original') if self.dashboard_mode.get()=='Cartão de crédito' else ('Saídas por data','Entradas por data')
+        else:
+            data=self.chart_data
+            titles=getattr(self,'chart_titles',('Saídas por categoria','Saídas por dia'))
+        for canvas,values,title in zip((self.category_plot,self.account_plot),data,titles):
+            draw_chart(canvas,values,title,mode)
+
+    def delete_account(self):
+        account = self.accounts.get(self.account.get())
+        if account is None:
+            messagebox.showinfo('Selecione uma conta', 'Escolha no filtro a conta ou cartão que deseja excluir.')
+            return
+        impact = self.store.account_impact(account)
+        warning = (f"Excluir {impact['name']}?\n\n"
+                   f"Serão removidos {impact['transactions']} lançamentos, {impact['batches']} importações e {impact['invoices']} faturas desta conta/cartão.\n"
+                   'Os vínculos de pagamento serão desfeitos. Outras contas, regras e orçamentos permanecerão.\n\n'
+                   'A exclusão não pode ser desfeita pelo aplicativo. Os arquivos de extrato originais não serão apagados.')
+        if not messagebox.askyesno('Excluir conta / cartão',warning,icon='warning',default='no'): return
+        try:
+            self.store.delete_account(account)
+            self.load_accounts()
+            self.month.set('')
+            self.refresh()
+            self.import_status.config(text='Conta/cartão excluído do aplicativo.')
+        except (ValueError,sqlite3.Error) as exc:
+            messagebox.showerror('Não foi possível excluir',str(exc))
 
     def new_account(self):
         win = tk.Toplevel(self)
