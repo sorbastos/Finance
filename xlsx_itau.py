@@ -72,7 +72,7 @@ def parse_xlsx(raw):
         invoice_due, invoice_state, invoice_total = '', 'Aberta', None
         for index, (_, cells) in enumerate(rows):
             for value in cells.values():
-                if 'fatura fechada' in normalize(value): invoice_state = 'Fechada'
+                if re.search(r'fatura\s+(?:fechada|paga)\b', normalize(value)): invoice_state = 'Fechada'
             labels = {normalize(v): k for k,v in cells.items() if v.strip()}
             if 'vencimento' in labels and index+1 < len(rows):
                 values = rows[index+1][1]
@@ -82,7 +82,7 @@ def parse_xlsx(raw):
                 if total_column and values.get(total_column): invoice_total = money(values[total_column])
         for line, cells in rows:
             for value in cells.values():
-                match = re.search(r'fatura\s+(?:aberta|fechada)\s*-\s*([a-z]+)/(\d{4})', normalize(value))
+                match = re.search(r'fatura\s+(?:aberta|fechada|paga)\s*-\s*([a-z]+)/(\d{4})', normalize(value))
                 if match and match[1] in MONTHS:
                     invoice_month = f'{match[2]}-{MONTHS.index(match[1])+1:02d}'
             labels = {normalize(v): k for k, v in cells.items() if v.strip()}
