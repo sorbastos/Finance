@@ -156,7 +156,7 @@ class FinanceUI:
         category=selection[0] if len(selection)==1 else 'Alimentação'
         row=next((r for r in self.store.budget_report(month) if r['category']==category),None)
         self.form(f'Orçamento de {month} — todas as contas',[
-            ('category','Categoria',category,CATEGORIES[:-1]),('amount','Limite em reais',str(row['limit']/100) if row else '',None)],
+            ('category','Categoria',category,[c for c in self.store.categories() if c != CATEGORIES[-1]]),('amount','Limite em reais',str(row['limit']/100) if row else '',None)],
             lambda v:self.store.set_budget(month,v['category'],money(v['amount'])))
 
     def remove_budget(self):
@@ -166,7 +166,7 @@ class FinanceUI:
         r=self.rule_rows[self.selected('rules')] if editing else {}
         self.form('Regra de categorização',[
             ('term','Texto contido na descrição',r.get('term',''),None),
-            ('category','Categoria',r.get('category','Alimentação'),CATEGORIES),
+            ('category','Categoria',r.get('category','Alimentação'),self.store.categories()),
             ('apply','Aplicar também aos sem categoria?','Não',['Não','Sim'])],
             lambda v:self.store.save_rule(r.get('term',''),v['term'],v['category'],v['apply']=='Sim'))
 
@@ -189,7 +189,7 @@ class FinanceUI:
             ('date','Data (DD/MM/AAAA)',r.get('date',datetime.now().strftime('%d/%m/%Y')),None),
             ('description','Descrição',r.get('description',''),None),
             ('amount','Valor: negativo = despesa',str(r['amount']/100) if r else '',None),
-            ('category','Categoria',r.get('category','Sem categoria'),CATEGORIES),
+            ('category','Categoria',r.get('category','Sem categoria'),self.store.categories()),
             ('month','Mês de fatura do cartão (opcional)',r.get('invoice_month',''),None),
             ('ownership','Titularidade',r.get('ownership') or 'Não informado',['Não informado','Titular','Adicional']),
             ('holder','Nome do portador',r.get('holder',''),None),

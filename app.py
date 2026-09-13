@@ -102,7 +102,7 @@ class App(tk.Tk):
             button.pack(fill='x',padx=8,pady=1)
             self.nav_buttons[name]=button
         tk.Frame(self.sidebar,bg='white',height=16).pack(fill='x')
-        for title,command in [('Nova conta / cartão',self.new_account),('Excluir conta / cartão',self.delete_account),
+        for title,command in [('Categorias',self.manage_categories),('Nova conta / cartão',self.new_account),('Excluir conta / cartão',self.delete_account),
                               ('Desfazer importação',self.undo),('Backup manual',self.backup)]:
             tk.Button(self.sidebar,text=title,anchor='w',command=command,bg='white',fg='#7c8797',activebackground='#eef4fc',
                 relief='flat',borderwidth=0,highlightthickness=0,padx=16,pady=6,font=('DejaVu Sans',9)).pack(fill='x',padx=8)
@@ -599,6 +599,39 @@ class App(tk.Tk):
         self.wait_window(win)
         return result[0]
 
+    def manage_categories(self):
+        win = tk.Toplevel(self)
+        win.title('Categorias da conta e do cartão')
+        win.transient(self)
+        win.grab_set()
+        ttk.Label(win, text='Categorias compartilhadas entre contas e cartões.', padding=12).pack()
+        selected = ttk.Combobox(win, values=self.store.categories(), state='readonly', width=48)
+        selected.pack(fill='x', padx=12)
+        ttk.Label(win, text='Nome da categoria', padding=12).pack(anchor='w')
+        name = ttk.Entry(win, width=48)
+        name.pack(fill='x', padx=12)
+        def select(event=None):
+            name.delete(0, 'end')
+            name.insert(0, selected.get())
+        selected.bind('<<ComboboxSelected>>', select)
+        ttk.Label(win, text='Renomear atualiza lançamentos, regras e orçamentos.\nSem categoria e Transferência / pagamento de fatura são fixas.',
+                  padding=12, wraplength=460).pack()
+        def save(edit):
+            try:
+                if edit and not selected.get():
+                    raise ValueError('Selecione a categoria que deseja editar.')
+                saved = self.store.save_category(name.get(), selected.get() if edit else None)
+                selected.configure(values=self.store.categories())
+                selected.set(saved)
+                self.refresh()
+            except (ValueError, sqlite3.Error) as exc:
+                messagebox.showerror('Confira a categoria', str(exc), parent=win)
+        actions = ttk.Frame(win, padding=12)
+        actions.pack(fill='x')
+        ttk.Button(actions, text='Criar categoria', command=lambda: save(False)).pack(side='left', padx=4)
+        ttk.Button(actions, text='Salvar edição', command=lambda: save(True)).pack(side='left', padx=4)
+        ttk.Button(actions, text='Fechar', command=win.destroy).pack(side='right', padx=4)
+
     def categorize(self):
         ids = self.tree.selection()
         if not ids:
@@ -608,7 +641,7 @@ class App(tk.Tk):
         win = tk.Toplevel(self)
         win.title('Categoria e regra automática')
         ttk.Label(win, text=f'{len(ids)} lançamentos selecionados', padding=12).pack()
-        category = ttk.Combobox(win, values=CATEGORIES, state='readonly', width=42)
+        category = ttk.Combobox(win, values=self.store.categories(), state='readonly', width=42)
         category.set('Sem categoria')
         category.pack(padx=12)
         ttk.Label(win, text='Regra opcional: texto contido na descrição de futuras importações', padding=12).pack()

@@ -50,6 +50,39 @@ class FinanceStore(Store):
           date TEXT, description TEXT, amount INTEGER, invoice_month TEXT);
         ''')
 
+        if not self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='categories'").fetchone():
+            with self.db:
+                self.db.execute('CREATE TABLE categories(name TEXT PRIMARY KEY)')
+                names = set(CATEGORIES)
+                for table in ('transactions', 'rules', 'budgets'):
+                    names.update(r[0] for r in self.db.execute(f'SELECT DISTINCT category FROM {table}') if r[0])
+                self.db.executemany('INSERT INTO categories VALUES (?)', [(name,) for name in names])
+
+    def categories(self):
+        return [r[0] for r in self.db.execute('SELECT name FROM categories ORDER BY name COLLATE NOCASE')]
+
+    def save_category(self, name, old_name=None):
+        name = ' '.join(name.split())
+        if not name or len(name) > 60:
+            raise ValueError('Informe um nome de categoria com até 60 caracteres.')
+        names = self.categories()
+        if old_name is not None and old_name not in names:
+            raise ValueError('Selecione uma categoria existente.')
+        if old_name in ('Sem categoria', TRANSFER):
+            raise ValueError('Esta categoria é usada pelo sistema e não pode ser renomeada.')
+        if any(normalize(existing) == normalize(name) and existing != old_name for existing in names):
+            raise ValueError('Já existe uma categoria com esse nome.')
+        with self.db:
+            if old_name is None:
+                self.db.execute('INSERT INTO categories VALUES (?)', (name,))
+            else:
+                self.db.execute('UPDATE categories SET name=? WHERE name=?', (name,old_name))
+                for table in ('transactions','rules','budgets'):
+                    self.db.execute(f'UPDATE {table} SET category=? WHERE category=?', (name,old_name))
+                for column in ('old_debit_category','old_credit_category'):
+                    self.db.execute(f'UPDATE reconciliations SET {column}=? WHERE {column}=?', (name,old_name))
+        return name
+
     def save(self, account, filename, raw, rows, include_possible=False):
         digest = hashlib.sha256(raw).hexdigest()
         metadata = {(r['invoice_month'], r.get('invoice_due', ''), r.get('invoice_state', 'Aberta'), r.get('invoice_total'))
@@ -223,7 +256,7 @@ class FinanceStore(Store):
 
     def set_budget(self, month, category, amount):
         validate_month(month)
-        if category not in CATEGORIES or category==TRANSFER or amount<0: raise ValueError('Categoria ou limite inválido.')
+        if category not in self.categories() or category==TRANSFER or amount<0: raise ValueError('Categoria ou limite inválido.')
         with self.db: self.db.execute('INSERT OR REPLACE INTO budgets VALUES (?,?,?)',(month,category,amount))
 
     def delete_budget(self, month, category):
@@ -249,7 +282,7 @@ class FinanceStore(Store):
         day=date(day)
         if invoice_month: validate_month(invoice_month)
         if ownership not in ('','Titular','Adicional'): raise ValueError('Titularidade inválida.')
-        if not description.strip() or category not in CATEGORIES: raise ValueError('Descrição ou categoria inválida.')
+        if not description.strip() or category not in self.categories(): raise ValueError('Descrição ou categoria inválida.')
         if not self.db.execute('SELECT 1 FROM accounts WHERE id=?',(account,)).fetchone(): raise ValueError('Conta inválida.')
         if invoice_month and self.db.execute('SELECT kind FROM accounts WHERE id=?',(account,)).fetchone()[0]!='Cartão de crédito':
             raise ValueError('Mês de fatura só se aplica a cartões.')
@@ -271,13 +304,14 @@ class FinanceStore(Store):
             self.db.execute('UPDATE transactions SET ownership=?,holder=?,card_number=? WHERE id=?',(ownership,holder,card_number,target))
 
     def categorize(self, ids, category, term=''):
+        if category not in self.categories(): raise ValueError('Selecione uma categoria existente.')
         if any(self.db.execute('SELECT 1 FROM reconciliations WHERE debit=? OR credit=?',(ident,ident)).fetchone() for ident in ids) and category!=TRANSFER:
             raise ValueError('Desfaça a conciliação antes de trocar a categoria de um pagamento conciliado.')
         super().categorize(ids,category,term)
 
     def save_rule(self, old_term, term, category, apply=False):
         term=normalize(term)
-        if not term or category not in CATEGORIES: raise ValueError('Informe o texto e a categoria da regra.')
+        if not term or category not in self.categories(): raise ValueError('Informe o texto e a categoria da regra.')
         with self.db:
             if old_term and old_term!=term: self.db.execute('DELETE FROM rules WHERE term=?',(old_term,))
             self.db.execute('INSERT OR REPLACE INTO rules VALUES (?,?)',(term,category))
