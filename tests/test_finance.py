@@ -32,6 +32,8 @@ class FinanceTests(test_core.ImportTests):
         forecast=self.store.forecasts()
         self.assertEqual(len(forecast),4)
         self.assertEqual(sum(r['amount'] for r in forecast),40000)
+        self.assertEqual({r['ownership'] for r in forecast},{'Titular','Adicional'})
+        self.assertTrue(all(r['holder']=='Portador fictício' for r in forecast))
         self.assertEqual(len(self.store.transactions()),2)
         self.save_rows(2,'b',[self.purchase('2026-11',3),self.purchase('2026-11',3,ownership='Adicional')])
         self.assertEqual(len(self.store.forecasts()),2)
@@ -49,7 +51,7 @@ class FinanceTests(test_core.ImportTests):
         self.assertEqual(self.store.invoices()[0]['remaining'],10000)
         self.assertEqual(self.store.payment_candidates(),[])
         with self.assertRaises(ValueError): self.store.reconcile(debit['id'],credit['id'])
-        with self.assertRaises(ValueError): self.store.categorize([debit['id']],'Compras')
+        with self.assertRaises(ValueError): self.store.categorize([debit['id']],'Conforto')
         self.store.undo()
         self.assertEqual(self.store.invoices()[0]['paid'],0)
         self.assertEqual(len(self.store.reconciled()),0)
@@ -57,18 +59,18 @@ class FinanceTests(test_core.ImportTests):
     def test_budget_comparison_rules_and_edit_dedup(self):
         self.save_rows(1,'a',[dict(date='2026-09-08',description='Mercado',amount=-1000,fitid='1')])
         self.save_rows(1,'b',[dict(date='2026-10-08',description='Mercado',amount=-2000,fitid='2')])
-        self.store.save_rule('','mercado','Mercado',True)
-        self.store.set_budget('2026-10','Mercado',1500)
+        self.store.save_rule('','mercado','Custos fixos',True)
+        self.store.set_budget('2026-10','Custos fixos',1500)
         self.assertEqual(self.store.budget_report('2026-10')[0]['remaining'],-500)
         self.assertEqual(self.store.comparison('2026-10')[0]['difference'],1000)
         row=self.store.transactions('2026-10')[0]
-        self.store.edit_transaction(row['id'],1,'09/10/2026','Corrigido',-2500,'Mercado')
+        self.store.edit_transaction(row['id'],1,'09/10/2026','Corrigido',-2500,'Custos fixos')
         original=dict(date='2026-10-08',description='Mercado',amount=-2000,fitid='2')
         self.assertEqual(self.store.preview(1,[original])[0]['status'],'Duplicado (ID)')
-        self.store.edit_transaction(None,1,'10/10/2026','Manual',-100,'Compras')
+        self.store.edit_transaction(None,1,'10/10/2026','Manual',-100,'Conforto')
         self.assertEqual(len(self.store.transactions()),3)
         self.store.delete_rule('mercado');self.assertEqual(self.store.category('Mercado'),'Sem categoria')
-        self.store.delete_budget('2026-10','Mercado');self.assertEqual(self.store.budget_report('2026-10'),[])
+        self.store.delete_budget('2026-10','Custos fixos');self.assertEqual(self.store.budget_report('2026-10'),[])
 
     def test_snapshot_refresh_with_no_new_transactions(self):
         rows=[self.purchase()]
@@ -98,7 +100,7 @@ class FinanceTests(test_core.ImportTests):
         self.assertTrue(r['invoice_metadata'])
         self.assertEqual(r['invoice_state'],'Aberta')
         self.assertEqual(month_shift('2026-12',1),'2027-01')
-        with self.assertRaises(ValueError): self.store.set_budget('2026-13','Mercado',100)
+        with self.assertRaises(ValueError): self.store.set_budget('2026-13','Custos fixos',100)
 
     def test_xlsx_header_and_additional_owner(self):
         import io,zipfile

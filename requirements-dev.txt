@@ -1,0 +1,2 @@
+# A suíte usa unittest (biblioteca padrão). Dependências extras só quando necessárias.
+-r requirements.txt

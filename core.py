@@ -208,5 +208,10 @@ class Store:
                 self.db.execute('DELETE FROM batches WHERE id=?', (batch['id'],))
 
     def backup(self, path):
-        with sqlite3.connect(path) as destination:
+        """Copia o SQLite e fecha a conexão de destino mesmo se a cópia falhar."""
+        destination = sqlite3.connect(path)
+        try:
             self.db.backup(destination)
+        finally:
+            # O context manager de sqlite3 confirma transações, mas não fecha a conexão.
+            destination.close()

@@ -20,3 +20,57 @@ extratos/
 .env.*
 *.pem
 *.key
+
+# Outros formatos bancários e documentos financeiros locais
+*.[qQ][fF][xX]
+*.[qQ][iI][fF]
+*.[oO][fF][cC]
+*.[oO][dD][sS]
+*.[pP][dD][fF]
+*.[tT][sS][vV]
+
+# Pastas de dados, importações, exportações e capturas pessoais
+/data/
+/data_regional/
+/importacoes/
+/exportacoes/
+/faturas/
+/capturas/
+/screenshots/
+/logs/
+/local/
+.codex/
+codex-clipboard-*.png
+
+# Ambientes, empacotamento e ferramentas locais
+venv/
+env/
+.venv*/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Credenciais adicionais e certificados
+.aws/
+.ssh/
+/secrets/
+credentials*.json
+token*.json
+*.[pP]12
+*.[pP][fF][xX]
+
+# Histórico pessoal: permanece somente neste computador
+/RELATORIO_ALTERACOES_*.md

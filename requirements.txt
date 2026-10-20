@@ -1,0 +1,5 @@
+# Ambiente reproduzível da interface Qt; não usa os pacotes Python do sistema.
+PySide6==6.11.2
+PySide6_Addons==6.11.2
+PySide6_Essentials==6.11.2
+shiboken6==6.11.2
