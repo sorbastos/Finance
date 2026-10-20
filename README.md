@@ -20,7 +20,7 @@ as dependências ficam dentro da `.venv`, sem `sudo pip` ou pacotes globais.
 Não é preciso ativar o ambiente manualmente. Na primeira instalação é necessário
 acesso à internet; o aplicativo funciona localmente depois disso.
 
-Validado em Fedora Linux, Python 3.14 e PySide6 6.11.2. Em outro sistema, a
+Validado em Fedora Linux, Python 3.14 e PySide6 6.12.0. Em outro sistema, a
 disponibilidade das bibliotecas gráficas Qt precisa ser verificada. Se mover a
 pasta do projeto, recrie a `.venv`: ambientes virtuais não são portáveis.
 
@@ -299,3 +299,17 @@ parcelas. Nenhum lançamento é apagado. O grupo do orçamento da categoria de
 destino passa a valer; partes do mesmo gasto que convergirem são somadas.
 As categorias internas Sem categoria e Transferência / pagamento de fatura são
 protegidas. O vínculo com os grupos continua em **Orçamentos → Categorias**.
+
+### Proteções de segurança
+
+Os dados exibidos são tratados como texto simples, inclusive nos seletores:
+marcações contidas em descrições e nomes não carregam imagens externas. Cada
+arquivo importado tem limite de **20 MB**, validado antes e durante a leitura;
+planilhas XLSX mantêm também o limite de **50 MB descompactados**.
+
+Em Linux/POSIX, o banco e os backups são criados com permissão **600** (somente
+seu usuário); o diretório dedicado do aplicativo usa **700**. Bancos existentes
+têm as permissões restringidas ao abrir, sem alterar o conteúdo. Diretórios
+genéricos escolhidos pelo usuário não têm suas permissões modificadas. Essas
+permissões não são criptografia e não protegem contra acesso pela mesma conta
+ou por administrador do sistema. Veja [Segurança](docs/SEGURANCA.md).

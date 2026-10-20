@@ -39,3 +39,13 @@
 - Execute a suíte de domínio e a suíte Qt, incluindo abertura do QML nos dois temas.
 
 Consulte `docs/ARQUITETURA.md` e `docs/MIGRACAO_QT.md` antes de ampliar a interface.
+
+## Segurança
+
+- Dados de arquivos e textos do usuário devem ser exibidos como Text.PlainText,
+  inclusive nos delegates e no conteúdo dos seletores QML.
+- Use security.read_import_file para preservar o limite de 20 MB antes/durante
+  a leitura. Não substitua por read_bytes sem limite.
+- Preserve a criação privada de bancos/backups em security.prepare_private_database.
+- Não versione relatórios pessoais nem credenciais; mantenha o endereço noreply
+  nos novos commits deste repositório.

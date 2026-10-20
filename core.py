@@ -10,6 +10,7 @@ from collections import Counter
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from security import prepare_private_database
 
 
 def normalize(value):
@@ -112,7 +113,7 @@ CATEGORIES = ['Sem categoria', 'Alimentação', 'Mercado', 'Transporte', 'Moradi
 class Store:
     def __init__(self, path):
         self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        prepare_private_database(self.path)
         self.db = sqlite3.connect(self.path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript('''
@@ -209,6 +210,10 @@ class Store:
 
     def backup(self, path):
         """Copia o SQLite e fecha a conexão de destino mesmo se a cópia falhar."""
+        path = Path(path)
+        if path.exists() and path.samefile(self.path):
+            raise ValueError('Escolha um destino diferente do banco em uso.')
+        prepare_private_database(path)
         destination = sqlite3.connect(path)
         try:
             self.db.backup(destination)

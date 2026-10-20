@@ -11,6 +11,7 @@ from core import csv_table, normalize, parse_csv, parse_ofx
 from xlsx_itau import parse_xlsx
 from .service import FinanceService, field, table
 from .formatting import currency
+from security import read_import_file
 
 
 class ImportSession:
@@ -19,7 +20,7 @@ class ImportSession:
     def __init__(self, path: Path, service: FinanceService):
         """Carrega conteúdo uma vez; não abre conexões adicionais com o banco."""
         self.path = path
-        self.raw = path.read_bytes()
+        self.raw = read_import_file(path)
         self.service = service
         self.rows: list[dict] = []
         self.account: int | None = None

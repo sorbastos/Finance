@@ -79,7 +79,7 @@ Item {
         }
         RowLayout {
             Layout.fillWidth:true
-            Text {
+            Text { textFormat: Text.PlainText;
                 text: (panel.budget.monthLabel || "") + " · " + (panel.tab===1 ? "Distribua sua renda entre as metas" : "Gastos atualizados pelos lançamentos")
                 color: panel.ink; font.pixelSize: 17; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap
             }
@@ -90,7 +90,7 @@ Item {
                 onClicked:panel.actionRequested("budget_income","[]")
             }
         }
-        Text {
+        Text { textFormat: Text.PlainText;
             visible:panel.tab!==0
             text:"Renda do orçamento: "+(panel.budget.planningIncomeLabel || "R$ 0,00")+" · Receitas nas contas: "+(panel.budget.incomeLabel || "R$ 0,00")
             color:panel.muted; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap
@@ -111,14 +111,14 @@ Item {
                     Layout.fillWidth: true; Layout.preferredHeight: 116; radius: 15; color: panel.surface
                     ColumnLayout {
                         anchors.fill: parent; anchors.margins: 16; spacing: 6
-                        Text { text:modelData.label; color:panel.muted; font.pixelSize:12 }
-                        Text { text:modelData.value; color:modelData.tone; font.pixelSize:25; font.bold:true; Layout.fillWidth:true; fontSizeMode:Text.Fit; minimumPixelSize:16 }
-                        Text { text:modelData.detail; color:panel.muted; font.pixelSize:10; Layout.fillWidth:true; elide:Text.ElideRight }
+                        Text { textFormat: Text.PlainText; text:modelData.label; color:panel.muted; font.pixelSize:12 }
+                        Text { textFormat: Text.PlainText; text:modelData.value; color:modelData.tone; font.pixelSize:25; font.bold:true; Layout.fillWidth:true; fontSizeMode:Text.Fit; minimumPixelSize:16 }
+                        Text { textFormat: Text.PlainText; text:modelData.detail; color:panel.muted; font.pixelSize:10; Layout.fillWidth:true; elide:Text.ElideRight }
                     }
                 }
             }
         }
-        Text {
+        Text { textFormat: Text.PlainText;
             visible: panel.tab===0 && !panel.budget.planning_income
             text: panel.budget.income_configured ? "A renda do orçamento está zerada. As metas em reais ficam em zero até você editar esse valor." : "Defina a renda do orçamento para calcular as metas. As receitas das contas são exibidas separadamente e não substituem esse valor."
             color:panel.accent; Layout.fillWidth:true; wrapMode:Text.WordWrap; font.pixelSize:13
@@ -138,7 +138,7 @@ Item {
                 radius:16; color:panel.surface
                 ColumnLayout {
                     anchors.fill:parent; anchors.margins:16; spacing:10
-                    Text { text:"Resumo do mês"; color:panel.ink; font.pixelSize:17; font.bold:true }
+                    Text { textFormat: Text.PlainText; text:"Resumo do mês"; color:panel.ink; font.pixelSize:17; font.bold:true }
                     DataTable {
                         id: summary
                         objectName:"budget_summary"
@@ -150,7 +150,7 @@ Item {
                         rows:(panel.budget.summary || {}).rows || []
                         onRowsChanged: Qt.callLater(function(){ summary.fitAllColumns() })
                     }
-                    Text {
+                    Text { textFormat: Text.PlainText;
                         text:"Conta: "+(panel.budget.cashLabel || "R$ 0,00")+" · Cartão: "+(panel.budget.cardLabel || "R$ 0,00")
                         color:panel.muted; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap
                     }
@@ -162,7 +162,7 @@ Item {
                 radius:16; color:panel.surface
                 ColumnLayout {
                     anchors.fill:parent; anchors.margins:18; spacing:12
-                    Text { text:"Minhas metas"; color:panel.accent; font.pixelSize:17; font.bold:true }
+                    Text { textFormat: Text.PlainText; text:"Minhas metas"; color:panel.accent; font.pixelSize:17; font.bold:true }
                     GridLayout {
                         Layout.fillWidth:true; columns:overview.columns===2?2:1; columnSpacing:24; rowSpacing:13
                         Repeater {
@@ -171,8 +171,8 @@ Item {
                                 required property var modelData
                                 Layout.fillWidth:true
                                 Rectangle { width:8; height:8; radius:4; color:modelData.color }
-                                Text { text:modelData.name; color:panel.ink; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap }
-                                Text { text:modelData.percent+"%"; color:panel.ink; font.pixelSize:13; font.bold:true }
+                                Text { textFormat: Text.PlainText; text:modelData.name; color:panel.ink; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap }
+                                Text { textFormat: Text.PlainText; text:modelData.percent+"%"; color:panel.ink; font.pixelSize:13; font.bold:true }
                             }
                         }
                     }
@@ -184,7 +184,7 @@ Item {
         RowLayout {
             visible:panel.tab===0
             Layout.fillWidth:true
-            Text {
+            Text { textFormat: Text.PlainText;
                 text:"Os estornos abatem os gastos líquidos. O gráfico mostra os grupos com gasto positivo; créditos líquidos ficam na tabela."
                 color:panel.muted; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap
             }
@@ -202,8 +202,8 @@ Item {
                 radius:16; color:panel.surface
                 ColumnLayout {
                     anchors.fill:parent; anchors.margins:20; spacing:14
-                    Text { text:"Ajuste os percentuais"; color:panel.ink; font.pixelSize:18; font.bold:true }
-                    Text {
+                    Text { textFormat: Text.PlainText; text:"Ajuste os percentuais"; color:panel.ink; font.pixelSize:18; font.bold:true }
+                    Text { textFormat: Text.PlainText;
                         text:"As metas devem somar 100%. Os valores em reais usam somente a renda editável do orçamento."
                         color:panel.muted; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap
                     }
@@ -221,13 +221,13 @@ Item {
                                     required property string color
                                     Layout.fillWidth:true; spacing:6
                                     RowLayout {
-                                        Text { text:name; color:panel.ink; font.pixelSize:14; font.bold:true; Layout.fillWidth:true }
+                                        Text { textFormat: Text.PlainText; text:name; color:panel.ink; font.pixelSize:14; font.bold:true; Layout.fillWidth:true }
                                         SpinBox {
                                             objectName:"budget_percent_"+groupId
                                             from:0; to:100; value:percent; editable:true
                                             onValueModified:panel.updatePercent(index,value)
                                         }
-                                        Text { text:"%"; color:panel.muted }
+                                        Text { textFormat: Text.PlainText; text:"%"; color:panel.muted }
                                     }
                                     Slider {
                                         id:slider
@@ -244,7 +244,7 @@ Item {
                             }
                         }
                     }
-                    Text {
+                    Text { textFormat: Text.PlainText;
                         text:"Total: "+panel.totalPercent+"% · "+(panel.totalPercent===100?"Distribuição válida":"Ajuste para 100%")
                         color:panel.totalPercent===100?panel.accent:"#e98291"; font.pixelSize:13
                     }
@@ -260,7 +260,7 @@ Item {
                 }
             }
         }
-        Text {
+        Text { textFormat: Text.PlainText;
             visible:panel.tab===1
             text:"Base: "+(panel.budget.goalSourceLabel || "")+". Metas salvas passam a valer neste mês e nos seguintes, até outra configuração."
             color:panel.muted; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap
@@ -280,10 +280,10 @@ Item {
                 anchors.fill:parent; anchors.margins:18; spacing:12
                 RowLayout {
                     Layout.fillWidth:true
-                    Text { text:"Categorias do orçamento"; color:panel.ink; font.pixelSize:18; font.bold:true; Layout.fillWidth:true }
-                    Text { text:panel.filteredAssignments.length+" categorias"; color:panel.muted; font.pixelSize:12 }
+                    Text { textFormat: Text.PlainText; text:"Categorias do orçamento"; color:panel.ink; font.pixelSize:18; font.bold:true; Layout.fillWidth:true }
+                    Text { textFormat: Text.PlainText; text:panel.filteredAssignments.length+" categorias"; color:panel.muted; font.pixelSize:12 }
                 }
-                Text {
+                Text { textFormat: Text.PlainText;
                     text:"Vincule cada categoria da transação a um grupo do orçamento. O vínculo vale para conta, cartão e todos os meses."
                     color:panel.muted; font.pixelSize:12; Layout.fillWidth:true; wrapMode:Text.WordWrap
                 }
@@ -310,9 +310,9 @@ Item {
                 }
                 Row {
                     Layout.fillWidth:true; height:30
-                    Text { width:categoryCard.textWidth; height:30; leftPadding:8; text:"Categoria"; color:panel.muted; font.pixelSize:12; font.bold:true; verticalAlignment:Text.AlignVCenter }
-                    Text { width:categoryCard.textWidth; height:30; leftPadding:8; text:"Grupo do orçamento"; color:panel.muted; font.pixelSize:12; font.bold:true; verticalAlignment:Text.AlignVCenter }
-                    Text { width:categoryCard.moneyWidth; height:30; rightPadding:16; text:"Gasto no mês"; horizontalAlignment:Text.AlignRight; color:panel.muted; font.pixelSize:12; font.bold:true; verticalAlignment:Text.AlignVCenter }
+                    Text { textFormat: Text.PlainText; width:categoryCard.textWidth; height:30; leftPadding:8; text:"Categoria"; color:panel.muted; font.pixelSize:12; font.bold:true; verticalAlignment:Text.AlignVCenter }
+                    Text { textFormat: Text.PlainText; width:categoryCard.textWidth; height:30; leftPadding:8; text:"Grupo do orçamento"; color:panel.muted; font.pixelSize:12; font.bold:true; verticalAlignment:Text.AlignVCenter }
+                    Text { textFormat: Text.PlainText; width:categoryCard.moneyWidth; height:30; rightPadding:16; text:"Gasto no mês"; horizontalAlignment:Text.AlignRight; color:panel.muted; font.pixelSize:12; font.bold:true; verticalAlignment:Text.AlignVCenter }
                 }
                 ListView {
                     id:categoryList
@@ -328,18 +328,18 @@ Item {
                         color:index%2 ? Qt.rgba(panel.backgroundColor.r,panel.backgroundColor.g,panel.backgroundColor.b,0.45) : "transparent"
                         Row {
                             height:parent.height
-                            Text {
+                            Text { textFormat: Text.PlainText;
                                 width:categoryCard.textWidth; height:parent.height
                                 leftPadding:8; rightPadding:12; text:categoryRow.modelData.category
                                 color:panel.ink; font.pixelSize:13; font.bold:true
                                 verticalAlignment:Text.AlignVCenter; elide:Text.ElideRight
                             }
-                            Text {
+                            Text { textFormat: Text.PlainText;
                                 width:categoryCard.textWidth; height:parent.height
                                 text:categoryRow.modelData.groupName; color:panel.muted; font.pixelSize:12
                                 leftPadding:8; rightPadding:12; elide:Text.ElideRight; verticalAlignment:Text.AlignVCenter
                             }
-                            Text {
+                            Text { textFormat: Text.PlainText;
                                 objectName:"budget_spent_"+categoryRow.modelData.category
                                 width:categoryCard.moneyWidth; height:parent.height; rightPadding:16
                                 text:categoryRow.modelData.spentLabel; color:panel.ink; font.pixelSize:13
@@ -357,7 +357,7 @@ Item {
 
                         }
                     }
-                    Text {
+                    Text { textFormat: Text.PlainText;
                         anchors.centerIn:parent; visible:categoryList.count===0
                         text:"Nenhuma categoria encontrada neste filtro."; color:panel.muted; font.pixelSize:13
                     }

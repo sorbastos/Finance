@@ -24,7 +24,7 @@ Rectangle {
     onInkChanged: graph.requestPaint()
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 18; spacing: 12
-        Text { text: panel.title; color: panel.ink; font.pixelSize: 15; font.bold: true }
+        Text { textFormat: Text.PlainText; text: panel.title; color: panel.ink; font.pixelSize: 15; font.bold: true }
         Canvas {
             id: graph
             Layout.fillWidth: true; Layout.preferredHeight: panel.plotHeight
@@ -62,7 +62,7 @@ Rectangle {
                     }
                 }
             }
-            Text { anchors.centerIn: parent; visible: !panel.series.length; text: "Sem dados no período"; color: panel.muted }
+            Text { textFormat: Text.PlainText; anchors.centerIn: parent; visible: !panel.series.length; text: "Sem dados no período"; color: panel.muted }
         }
         // A legenda mantém os valores acessíveis sem depender de hover/tooltips.
         ScrollView {
@@ -77,8 +77,8 @@ Rectangle {
                         required property int index
                         width: parent.width; spacing: 8
                         Rectangle { width: 8; height: 8; radius: 4; color: panel.colorAt(index) }
-                        Text { text: modelData.label; color: panel.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
-                        Text { text: modelData.formatted; color: panel.ink; font.pixelSize: 12; Layout.rightMargin: 12 }
+                        Text { textFormat: Text.PlainText; text: modelData.label; color: panel.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Text { textFormat: Text.PlainText; text: modelData.formatted; color: panel.ink; font.pixelSize: 12; Layout.rightMargin: 12 }
                     }
                 }
             }

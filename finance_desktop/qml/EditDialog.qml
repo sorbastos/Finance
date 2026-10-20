@@ -39,8 +39,8 @@ Dialog {
     ListModel { id: parts }
     contentItem: ColumnLayout {
         spacing: 14
-        Text { text: editor.schema.title || ""; color: editor.ink; font.pixelSize: 22; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-        Text { text: editor.schema.note || ""; visible: text.length > 0; color: editor.muted; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 13 }
+        Text { textFormat: Text.PlainText; text: editor.schema.title || ""; color: editor.ink; font.pixelSize: 22; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+        Text { textFormat: Text.PlainText; text: editor.schema.note || ""; visible: text.length > 0; color: editor.muted; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 13 }
         ScrollView {
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
             ColumnLayout {
@@ -51,7 +51,7 @@ Dialog {
                         id: entry
                         required property var modelData
                         Layout.fillWidth: true; spacing: 5
-                        Text { text: entry.modelData.label; color: editor.ink; font.pixelSize: 13 }
+                        Text { textFormat: Text.PlainText; text: entry.modelData.label; color: editor.ink; font.pixelSize: 13 }
                         Loader {
                             Layout.fillWidth: true
                             sourceComponent: entry.modelData.choices.length ? choice : input
@@ -103,7 +103,7 @@ Dialog {
                 }
             }
         }
-        Text { text: editor.error; visible: text.length > 0; color: "#e05e73"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        Text { textFormat: Text.PlainText; text: editor.error; visible: text.length > 0; color: "#e05e73"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         RowLayout {
             Layout.alignment: Qt.AlignRight
             ActionButton { text: "Cancelar"; onClicked: editor.cancelled() }

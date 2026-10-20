@@ -11,7 +11,7 @@ Button {
     implicitHeight: 38
     implicitWidth: Math.max(90, label.implicitWidth + 28)
     font.pixelSize: 13
-    contentItem: Text {
+    contentItem: Text { textFormat: Text.PlainText;
         id: label
         text: control.text
         color: control.primary ? "white" : control.ink

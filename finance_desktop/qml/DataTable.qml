@@ -87,7 +87,7 @@ Rectangle {
                 height: 44
                 Repeater {
                     model: table.headers
-                    Text {
+                    Text { textFormat: Text.PlainText;
                         required property string modelData
                         required property int index
                         objectName: "column_header_" + index
@@ -140,7 +140,7 @@ Rectangle {
                     Row {
                         Repeater {
                             model: row.modelData.cells
-                            Text {
+                            Text { textFormat: Text.PlainText;
                                 required property string modelData
                                 required property int index
                                 objectName: "column_cell_" + row.modelData.id + "_" + index
@@ -159,7 +159,7 @@ Rectangle {
                         onDoubleClicked: { table.selection = [row.modelData.id]; table.rowActivated() }
                     }
                 }
-                Text {
+                Text { textFormat: Text.PlainText;
                     anchors.centerIn: parent; visible: list.count === 0
                     text: table.emptyText; color: table.muted; font.pixelSize: 14
                 }

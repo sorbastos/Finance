@@ -553,6 +553,34 @@ class DesktopQmlTests(unittest.TestCase):
         self.controller.submit(json.dumps({'replacement':'Sem categoria'}))
         self.assertNotIn('Teste renomeado', self.service.store.categories())
 
+    def test_imported_markup_is_rendered_as_plain_text(self) -> None:
+        """Marcações da descrição são literais em células e seletores, sem recursos HTML."""
+        text = '<b>Descrição sintética</b>'
+        self.service.store.edit_transaction(self.ident, 1, '2026-09-02', text, -35000, 'Mercado')
+        self.controller.navigate('transactions')
+        QTest.qWait(40)
+        pending = [self.window.contentItem()]
+        found = False
+        while pending:
+            item = pending.pop()
+            if item.objectName() == 'column_cell_'+str(self.ident)+'_5':
+                self.assertEqual(item.property('text'), text)
+                self.assertEqual(QQmlExpression(self.engine.rootContext(), item, 'Number(textFormat)').evaluate()[0], 0)
+                found = True
+            pending.extend(item.childItems())
+        self.assertTrue(found)
+        self.controller.action('edit_transaction', json.dumps([str(self.ident)]))
+        QTest.qWait(30)
+        pending = [self.window.findChild(QObject, 'editor').property('contentItem')]
+        found = False
+        while pending:
+            item = pending.pop()
+            if item.objectName() == 'field_account':
+                self.assertEqual(QQmlExpression(self.engine.rootContext(), item, 'Number(contentItem.textFormat)').evaluate()[0], 0)
+                found = True
+            pending.extend(item.childItems())
+        self.assertTrue(found)
+
     def test_all_form_variants_open(self) -> None:
         """Verifica campos simples, seletores, divisão e confirmações sem escrita."""
         cases = [('new_transaction', []), ('edit_transaction', [str(self.ident)]),

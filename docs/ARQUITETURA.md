@@ -239,3 +239,13 @@ conciliação e heranças de parcelas e só depois remove a categoria. O víncul
 destino prevalece, sem alterar valores de lançamentos. Marcadores internos e
 substituições inválidas são rejeitados. A restauração do catálogo tem marcador
 único e não recria a categoria excluída na próxima abertura.
+
+## Segurança de entrada e armazenamento
+
+`security.py` centraliza `read_import_file` (20 MB antes e durante a leitura) e
+`prepare_private_database` (600 POSIX, diretório dedicado 700, sem truncar dados).
+`Store` aplica a preparação antes de conectar, inclusive no backup. Diretórios
+arbitrários existentes não têm suas permissões alteradas. Textos QML próprios,
+conteúdo atual e delegates de AppSelect usam explicitamente texto simples.
+O conjunto Qt passou para 6.12.0 com testes de regressão; detalhes e limites
+estão em SEGURANCA.md. O relatório pessoal permanece fora do versionamento.

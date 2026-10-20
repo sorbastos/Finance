@@ -37,11 +37,11 @@ ApplicationWindow {
             Behavior on Layout.preferredWidth { NumberAnimation { duration: 150 } }
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: window.compact ? 8 : 18; spacing: 12
-                Text {
+                Text { textFormat: Text.PlainText;
                     text: window.compact ? "F" : "Finance"; color: window.ink
                     font.pixelSize: 29; font.bold: true; Layout.topMargin: 12; Layout.leftMargin: 10
                 }
-                Text { visible: !window.compact; text: "SUAS FINANÇAS, NO SEU PC"; color: window.muted; font.pixelSize: 9; Layout.leftMargin: 10; Layout.bottomMargin: 14 }
+                Text { textFormat: Text.PlainText; visible: !window.compact; text: "SUAS FINANÇAS, NO SEU PC"; color: window.muted; font.pixelSize: 9; Layout.leftMargin: 10; Layout.bottomMargin: 14 }
                 ScrollView {
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
                     Column {
@@ -61,7 +61,7 @@ ApplicationWindow {
                                 border.width: activeFocus ? 2 : 0; border.color: "#7190ff"
                                 color: finance.page === modelData.id ? window.selectedColor : hit.containsMouse ? window.backgroundColor : "transparent"
                                 AppIcon { id: navIcon; name: nav.modelData.icon; ink: finance.page === nav.modelData.id ? "#7190ff" : window.muted; x: window.compact ? (parent.width-width)/2 : 12; y: window.compact ? 5 : 11 }
-                                Text {
+                                Text { textFormat: Text.PlainText;
                                     text: nav.modelData.title
                                     color: finance.page === nav.modelData.id ? window.ink : window.muted
                                     font.pixelSize: window.compact ? 8 : 13
@@ -73,7 +73,7 @@ ApplicationWindow {
                                     visible: !window.compact && (window.state.badges || {})[nav.modelData.id] > 0
                                     anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter
                                     width: 26; height: 22; radius: 8; color: window.selectedColor
-                                    Text { anchors.centerIn: parent; text: (window.state.badges || {})[nav.modelData.id] || ""; color: window.ink; font.pixelSize: 10 }
+                                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: (window.state.badges || {})[nav.modelData.id] || ""; color: window.ink; font.pixelSize: 10 }
                                 }
                                 MouseArea { id: hit; anchors.fill: parent; hoverEnabled: true; onClicked: { nav.forceActiveFocus(); finance.navigate(nav.modelData.id) } }
                             }
@@ -85,7 +85,7 @@ ApplicationWindow {
                     surface: window.backgroundColor; ink: window.ink
                     onClicked: finance.toggleTheme()
                 }
-                Text { visible: !window.compact; text: "Armazenamento local · SQLite"; color: window.muted; font.pixelSize: 10; Layout.bottomMargin: 8 }
+                Text { textFormat: Text.PlainText; visible: !window.compact; text: "Armazenamento local · SQLite"; color: window.muted; font.pixelSize: 10; Layout.bottomMargin: 8 }
             }
         }
         ColumnLayout {
@@ -95,8 +95,8 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 4
-                    Text { text: window.state.title || "Finance"; color: window.ink; font.pixelSize: window.compact ? 23 : 29; font.bold: true }
-                    Text { text: window.state.description || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Text { textFormat: Text.PlainText; text: window.state.title || "Finance"; color: window.ink; font.pixelSize: window.compact ? 23 : 29; font.bold: true }
+                    Text { textFormat: Text.PlainText; text: window.state.description || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
                 }
                 ActionButton { text: "＋ Importar arquivos"; primary: true; onClicked: finance.importFiles() }
             }
@@ -190,16 +190,16 @@ ApplicationWindow {
                                 Layout.fillWidth: true; Layout.preferredHeight: 116; radius: 15; color: window.surface
                                 ColumnLayout {
                                     anchors.fill: parent; anchors.margins: 16; spacing: 5
-                                    Text { text: modelData.label; color: window.muted; font.pixelSize: 12 }
-                                    Text { text: modelData.value; color: ({green:"#24b79b",red:"#ed7586",blue:"#6392f4",purple:"#ae8bf0"})[modelData.tone] || window.ink; font.pixelSize: 25; font.bold: true }
-                                    Text { text: modelData.detail; color: window.muted; font.pixelSize: 10; Layout.fillWidth: true; elide: Text.ElideRight }
+                                    Text { textFormat: Text.PlainText; text: modelData.label; color: window.muted; font.pixelSize: 12 }
+                                    Text { textFormat: Text.PlainText; text: modelData.value; color: ({green:"#24b79b",red:"#ed7586",blue:"#6392f4",purple:"#ae8bf0"})[modelData.tone] || window.ink; font.pixelSize: 25; font.bold: true }
+                                    Text { textFormat: Text.PlainText; text: modelData.detail; color: window.muted; font.pixelSize: 10; Layout.fillWidth: true; elide: Text.ElideRight }
                                 }
                             }
                         }
                     }
                     RowLayout {
                         visible: ["accounts","cards"].indexOf(finance.page)>=0
-                        Text { text: "Visão do período"; color: window.ink; font.pixelSize: 17; font.bold: true; Layout.fillWidth: true }
+                        Text { textFormat: Text.PlainText; text: "Visão do período"; color: window.ink; font.pixelSize: 17; font.bold: true; Layout.fillWidth: true }
                         Repeater {
                             model: ["Barras", "Rosca", "Evolução"]
                             ActionButton {
@@ -265,8 +265,8 @@ ApplicationWindow {
                             text: "Ver transações →"; primary: true; onClicked: finance.navigate("transactions")
                         }
                     }
-                    Text { visible: ["accounts","cards"].indexOf(finance.page)>=0; text: "Resumo por conta"; color: window.ink; font.pixelSize: 16; font.bold: true }
-                    Text {
+                    Text { textFormat: Text.PlainText; visible: ["accounts","cards"].indexOf(finance.page)>=0; text: "Resumo por conta"; color: window.ink; font.pixelSize: 16; font.bold: true }
+                    Text { textFormat: Text.PlainText;
                         visible: finance.page === "forecasts"
                         text: window.state.forecastCaption || ""
                         color: window.ink; font.pixelSize: 15; font.bold: true
@@ -282,12 +282,12 @@ ApplicationWindow {
                         surface: window.surface; ink: window.ink; muted: window.muted; highlight: window.selectedColor
                         onRowActivated: { if(finance.page === "transactions") finance.action("edit_transaction", JSON.stringify(selection)) }
                     }
-                    Text {
+                    Text { textFormat: Text.PlainText;
                         visible: finance.page !== "budgets"
                         text: (window.state.rows || []).length + " registros" + (dataTable.selection.length ? " · " + dataTable.selection.length + " selecionados" : "") + " · Ctrl + clique para seleção múltipla"
                         color: window.muted; font.pixelSize: 11
                     }
-                    Text { text: window.state.note || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                    Text { textFormat: Text.PlainText; text: window.state.note || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 }
             }
             Rectangle {
@@ -296,7 +296,7 @@ ApplicationWindow {
                 visible: message.length > 0
                 Layout.fillWidth: true; Layout.preferredHeight: noticeText.implicitHeight + 24
                 radius: 10; color: window.selectedColor
-                Text { id: noticeText; anchors.left: parent.left; anchors.right: dismiss.left; anchors.margins: 12; anchors.verticalCenter: parent.verticalCenter; text: notice.message; color: window.ink; wrapMode: Text.WordWrap }
+                Text { textFormat: Text.PlainText; id: noticeText; anchors.left: parent.left; anchors.right: dismiss.left; anchors.margins: 12; anchors.verticalCenter: parent.verticalCenter; text: notice.message; color: window.ink; wrapMode: Text.WordWrap }
                 ActionButton { id: dismiss; anchors.right: parent.right; text: "×"; implicitWidth: 38; surface: window.selectedColor; ink: window.ink; onClicked: notice.message="" }
             }
         }
