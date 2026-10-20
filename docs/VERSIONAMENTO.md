@@ -10,7 +10,7 @@ Revisão de 20/10/2026, antes do commit da migração Qt e das melhorias finance
 | `direct_budget.py` | Migração histórica coberta por testes; não é chamada pela inicialização atual |
 | `finance_desktop/` | Interface PySide6/QML e serviços |
 | `tests/` | Testes e arquivos bancários sintéticos gerados em memória ou em diretórios temporários |
-| `requirements.txt`, `requirements-dev.txt` | Dependências reproduzíveis |
+| `requirements.txt` | Dependências reproduzíveis; testes não exigem pacotes adicionais |
 | `instalar.sh`, `iniciar.sh` | Instalação em ambiente virtual e inicialização |
 | `README.md`, `AGENTS.md`, `docs/` | Instruções e documentação revisadas, sem extratos ou valores pessoais |
 | `.gitignore` | Regras compartilhadas para impedir inclusão acidental de arquivos locais |

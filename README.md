@@ -242,8 +242,8 @@ QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software .venv/bin/python -m finance_
 
 Os testes usam dados sintéticos. `--database` permite desenvolvimento isolado.
 `--smoke-test` e `--screenshot` exigem um banco explicitamente escolhido, para
-evitar abrir dados pessoais por acidente. Requisitos de desenvolvimento ficam
-em `requirements-dev.txt`; a suíte usa `unittest` e QtTest, já disponíveis.
+evitar abrir dados pessoais por acidente. A suíte usa `unittest` e QtTest, já
+disponíveis com o Python e as dependências de `requirements.txt`.
 
 Leia [Arquitetura](docs/ARQUITETURA.md), [Migração Qt](docs/MIGRACAO_QT.md) e
 [Orientações de manutenção](AGENTS.md).

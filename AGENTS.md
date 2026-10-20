@@ -4,8 +4,8 @@
 
 - Instale e execute sempre pelo ambiente `.venv` do projeto. O Python do sistema
   serve apenas para `python3 -m venv .venv`; nunca instale dependências globalmente.
-- Declare dependências com versões fixadas em `requirements.txt`. Dependências
-  exclusivas de desenvolvimento pertencem a `requirements-dev.txt`.
+- Declare dependências com versões fixadas em `requirements.txt`. Atualmente não
+  existem dependências adicionais exclusivas de desenvolvimento.
 - Use `bash instalar.sh`, `bash iniciar.sh` e `.venv/bin/python -m unittest`.
 
 - A interface principal é PySide6 / Qt Quick (pacote `finance_desktop`).
