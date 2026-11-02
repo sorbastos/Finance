@@ -106,7 +106,10 @@ def parse_xlsx(raw):
                 if not description:
                     raise ValueError('Lançamento sem descrição')
                 amount = -money(get('valor'))
-                payment = normalize(description).startswith(('pagamento com saldo', 'pagamento de fatura', 'pagamento recebido'))
+                # Boleto é outra forma de quitar a fatura; apenas créditos são
+                # classificados como pagamento, evitando confundir uma compra.
+                payment = amount > 0 and normalize(description).startswith(
+                    ('pagamento com saldo', 'pagamento de fatura', 'pagamento recebido', 'pagamento boleto'))
                 details = [get('parcelamento'), get('numero do cartao'), get('titularidade')]
                 description = ' · '.join([description] + [v for v in details if v])
                 result.append(dict(date=excel_date(get('data'), epoch), description=description,

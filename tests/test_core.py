@@ -67,11 +67,12 @@ class ImportTests(unittest.TestCase):
 
     def test_rules_undo_and_backup(self):
         self.store.save(1, 'a', b'a', self.store.preview(1, [self.row()]))
-        self.store.categorize([1], 'Mercado', 'MERCADO')
-        self.assertEqual(self.store.preview(1, [self.row()])[0]['category'], 'Mercado')
+        category = 'Custos fixos' if hasattr(self.store, 'planner') else 'Mercado'
+        self.store.categorize([1], category, 'MERCADO')
+        self.assertEqual(self.store.preview(1, [self.row()])[0]['category'], category)
         self.store.backup(Path(self.temp.name) / 'backup.sqlite3')
         other = Store(Path(self.temp.name) / 'backup.sqlite3')
-        self.assertEqual(other.transactions()[0]['category'], 'Mercado')
+        self.assertEqual(other.transactions()[0]['category'], category)
         other.db.close()
         self.store.undo()
         self.assertEqual(len(self.store.transactions()), 0)

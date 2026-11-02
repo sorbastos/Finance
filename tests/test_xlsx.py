@@ -5,13 +5,13 @@ from xlsx_itau import parse_xlsx, excel_date
 import test_core
 
 
-def fixture(value='12.34', month='Outubro', installment='Parcela 2 de 6', state='Aberta'):
+def fixture(value='12.34', month='Outubro', installment='Parcela 2 de 6', state='Aberta', payment='Pagamento Com Saldo'):
     def cell(ref, text, numeric=False):
         return f'<c r="{ref}"><v>{text}</v></c>' if numeric else f'<c r="{ref}" t="inlineStr"><is><t>{text}</t></is></c>'
     rows = [cell('B1', f'Fatura {state} - {month}/2026'),
             ''.join(cell(k+'2', v) for k,v in zip('BCDE', ['Data','Lançamento','Parcelamento','Valor'])),
             cell('B3', '2026-08-26')+cell('C3','Loja')+cell('D3',installment)+cell('E3',value,True),
-            cell('B4','2026-09-02')+cell('C4','Pagamento Com Saldo')+cell('E4','-100',True),
+            cell('B4','2026-09-02')+cell('C4',payment)+cell('E4','-100',True),
             cell('D5','Subtotal'), cell('B6','Importante saber')]
     data = io.BytesIO()
     with zipfile.ZipFile(data, 'w') as book:
@@ -48,6 +48,12 @@ class XlsxTests(unittest.TestCase):
                 self.assertEqual(rows[0]['invoice_state'], 'Fechada')
                 self.assertEqual(rows[0]['amount'], -1234)
                 self.assertEqual(rows[1]['amount'], 10000)
+
+    def test_boleto_payment_is_transfer_credit(self):
+        """O crédito Pagamento Boleto quita fatura e não representa nova receita."""
+        rows = parse_xlsx(fixture(payment='Pagamento Boleto'))
+        self.assertEqual(rows[1]['amount'], 10000)
+        self.assertEqual(rows[1]['category'], 'Transferência / pagamento de fatura')
 
     def test_invalid_and_excel_dates(self):
         self.assertEqual(excel_date('46267'), '2026-09-02')
